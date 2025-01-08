@@ -59,7 +59,7 @@ describe('VlmRun Node - Image AI Operations', () => {
       getNodeParameter: (paramName: string): string => {
         if (paramName === 'resource') return 'imageAi';
         if (paramName === 'operation') return 'imageCataloging';
-        if (paramName === 'model') return 'model-image';
+        if (paramName === 'model') return 'vlm-1';
         return '';
       },
     });
@@ -79,7 +79,7 @@ describe('VlmRun Node - Image AI Operations', () => {
       getNodeParameter: (paramName: string): string => {
         if (paramName === 'resource') return 'imageAi';
         if (paramName === 'operation') return 'imageCaptioning';
-        if (paramName === 'model') return 'model-image';
+        if (paramName === 'model') return 'vlm-1';
         return '';
       },
     });
@@ -99,7 +99,7 @@ describe('VlmRun Node - Image AI Operations', () => {
       getNodeParameter: (paramName: string): string => {
         if (paramName === 'resource') return 'experimental';
         if (paramName === 'operation') return 'imageEmbedding';
-        if (paramName === 'model') return 'model-image';
+        if (paramName === 'model') return 'vlm-1';
         return '';
       },
     });
@@ -129,7 +129,7 @@ describe('VlmRun Node - Image AI Operations', () => {
         getNodeParameter: (paramName: string): string => {
           if (paramName === 'resource') return 'imageAi';
           if (paramName === 'operation') return 'imageCataloging';
-          if (paramName === 'model') return 'model-image';
+          if (paramName === 'model') return 'vlm-1';
           return '';
         },
         getInputData: () => [{
@@ -159,7 +159,7 @@ describe('VlmRun Node - Image AI Operations', () => {
         getNodeParameter: (paramName: string): string => {
           if (paramName === 'resource') return 'imageAi';
           if (paramName === 'operation') return 'imageCataloging';
-          if (paramName === 'model') return 'model-image';
+          if (paramName === 'model') return 'vlm-1';
           return '';
         },
         getInputData: () => [{
@@ -193,7 +193,7 @@ describe('VlmRun Node - Image AI Operations', () => {
         getNodeParameter: (paramName: string): string => {
           if (paramName === 'resource') return 'imageAi';
           if (paramName === 'operation') return 'imageCataloging';
-          if (paramName === 'model') return 'model-image';
+          if (paramName === 'model') return 'vlm-1';
           return '';
         },
         getInputData: () => [{
