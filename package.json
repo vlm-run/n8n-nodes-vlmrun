@@ -63,6 +63,7 @@
     "n8n-workflow": "*"
   },
   "dependencies": {
-    "form-data": "^4.0.0"
+    "form-data": "^4.0.0",
+    "vlmrun": "^0.1.5"
   }
 }

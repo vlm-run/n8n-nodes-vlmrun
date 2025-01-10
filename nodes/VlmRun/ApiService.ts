@@ -13,15 +13,16 @@ import {
 	ImageRequest,
 	WebpagePredictionRequest,
 	AudioRequest,
+	DocumentEmbeddingRequest,
+	ImageEmbeddingRequest,
 } from './types';
+import VlmRun, { toFile } from 'vlmrun';
+import { ImageGenerateParams, WebGenerateParams } from 'vlmrun/resources';
 
-async function getCommonHeaders(ef: IExecuteFunctions, contentType: 'json' | 'form' = 'json') {
+async function getBearerToken(ef: IExecuteFunctions): Promise<string> {
 	const credentials = (await ef.getCredentials('vlmRunApi')) as { apiKey: string };
-	return {
-		'Content-Type': contentType === 'json' ? 'application/json' : 'multipart/form-data',
-		Accept: 'application/json',
-		Authorization: `Bearer ${credentials.apiKey}`,
-	};
+
+	return credentials.apiKey.trim();
 }
 
 async function getBaseUrl(ef: IExecuteFunctions): Promise<string> {
@@ -29,25 +30,34 @@ async function getBaseUrl(ef: IExecuteFunctions): Promise<string> {
 	return credentials.apiBaseUrl.trim();
 }
 
+async function initializeVlmRun(ef: IExecuteFunctions): Promise<VlmRun> {
+	const bearerToken = await getBearerToken(ef);
+	const baseUrl = await getBaseUrl(ef);
+
+	return new VlmRun({
+		baseURL: baseUrl,
+		bearerToken: bearerToken,
+	});
+}
+
 export async function uploadFile(
 	ef: IExecuteFunctions,
 	buffer: any,
 	fileName: string,
 ): Promise<FileResponse> {
-	const headers = await getCommonHeaders(ef, 'form');
-	const baseUrl = await getBaseUrl(ef);
+	const vlmRun = await initializeVlmRun(ef);
 
 	const form = new FormData();
 	form.append('file', buffer, { filename: fileName });
 
 	try {
-		const uploadResponse = await ef.helpers.httpRequest({
-			method: 'POST',
-			url: `${baseUrl}/files`,
-			headers: headers,
-			body: form,
+		const file = await toFile(buffer, fileName);
+		const uploadResponse = await vlmRun.files.create({
+			file: file,
+			purpose: 'assistants',
 		});
 		console.log('File uploaded...');
+
 		return uploadResponse as FileResponse;
 	} catch (error) {
 		if (error.response && error.response.data && error.response.data.detail) {
@@ -59,8 +69,7 @@ export async function uploadFile(
 }
 
 export async function getFiles(ef: IExecuteFunctions): Promise<FileResponse[]> {
-	const headers = await getCommonHeaders(ef);
-	const baseUrl = await getBaseUrl(ef);
+	const vlmRun = await initializeVlmRun(ef);
 	const skip = 0;
 	const limit = 10;
 
@@ -69,11 +78,7 @@ export async function getFiles(ef: IExecuteFunctions): Promise<FileResponse[]> {
 	if (limit !== undefined) queryParams.append('limit', limit.toString());
 
 	try {
-		const filesResponse = await ef.helpers.httpRequest({
-			method: 'GET',
-			url: `${baseUrl}/files${queryParams.toString() ? `?${queryParams.toString()}` : ''}`,
-			headers: headers,
-		});
+		const filesResponse = await vlmRun.files.list({ limit: limit, skip: skip });
 
 		return filesResponse as FileResponse[];
 	} catch (error) {
@@ -86,23 +91,17 @@ export async function getFiles(ef: IExecuteFunctions): Promise<FileResponse[]> {
 }
 
 export async function generateDocumentRequest(
-	executeFunctions: IExecuteFunctions,
+	ef: IExecuteFunctions,
 	request: DocumentRequest,
 ): Promise<PredictionResponse> {
-	const headers = await getCommonHeaders(executeFunctions);
-	const baseUrl = await getBaseUrl(executeFunctions);
-	console.log('Generating document...');
+	const vlmRun = await initializeVlmRun(ef);
+
 	try {
-		const generateResponse = await executeFunctions.helpers.httpRequest({
-			method: 'POST',
-			url: `${baseUrl}/document/generate`,
-			headers: headers,
-			body: JSON.stringify({
-				model: request.model,
-				file_id: request.fileId,
-				domain: request.domain,
-				batch: request.batch,
-			}),
+		const generateResponse = await vlmRun.document.generate({
+			file_id: request.fileId,
+			model: request.model,
+			domain: request.domain,
+			batch: request.batch,
 		});
 		console.log('Document generated...');
 
@@ -110,7 +109,7 @@ export async function generateDocumentRequest(
 	} catch (error) {
 		if (error.response && error.response.data && error.response.data.detail) {
 			throw new NodeOperationError(
-				executeFunctions.getNode(),
+				ef.getNode(),
 				`API Error: ${error.response.data.detail}`,
 			);
 		} else {
@@ -123,8 +122,7 @@ export async function generateAudioRequest(
 	ef: IExecuteFunctions,
 	request: AudioRequest,
 ): Promise<PredictionResponse> {
-	const headers = await getCommonHeaders(ef);
-	const baseUrl = await getBaseUrl(ef);
+	const vlmRun = await initializeVlmRun(ef);
 
 	const payload = {
 		file_id: request.fileId,
@@ -134,13 +132,7 @@ export async function generateAudioRequest(
 	};
 
 	try {
-		const response = await ef.helpers.request({
-			method: 'POST',
-			url: `${baseUrl}/audio/generate`,
-			headers: headers,
-			body: JSON.stringify(payload),
-			json: true,
-		});
+		const response = await vlmRun.audio.generate(payload);
 
 		return response as PredictionResponse;
 	} catch (error) {
@@ -153,22 +145,16 @@ export async function generateAudioRequest(
 }
 
 export async function generateDocumentEmbedding(
-	executeFunctions: IExecuteFunctions,
-	request: DocumentRequest,
+	ef: IExecuteFunctions,
+	request: DocumentEmbeddingRequest,
 ): Promise<PredictionResponse> {
-	const headers = await getCommonHeaders(executeFunctions);
-	const baseUrl = await getBaseUrl(executeFunctions);
-	console.log('Generating document embedding...');
+	const vlmRun = await initializeVlmRun(ef);
+
 	try {
-		const generateResponse = await executeFunctions.helpers.httpRequest({
-			method: 'POST',
-			url: `${baseUrl}/experimental/document/embeddings`,
-			headers: headers,
-			body: JSON.stringify({
-				model: request.model,
-				file_id: request.fileId,
-				batch: request.batch,
-			}),
+		const generateResponse = await vlmRun.experimental.document.embeddings.create({
+			model: request.model,
+			file_id: request.fileId,
+			batch: request.batch,
 		});
 		console.log('Document embedding generated...');
 
@@ -176,7 +162,7 @@ export async function generateDocumentEmbedding(
 	} catch (error) {
 		if (error.response && error.response.data && error.response.data.detail) {
 			throw new NodeOperationError(
-				executeFunctions.getNode(),
+				ef.getNode(),
 				`API Error: ${error.response.data.detail}`,
 			);
 		} else {
@@ -186,28 +172,22 @@ export async function generateDocumentEmbedding(
 }
 
 export async function getResponse(
-	executeFunctions: IExecuteFunctions,
+	ef: IExecuteFunctions,
 	responseId: string,
 ): Promise<IDataObject> {
-	const headers = await getCommonHeaders(executeFunctions);
-	const baseUrl = await getBaseUrl(executeFunctions);
+	const vlmRun = await initializeVlmRun(ef);
 
 	console.log(`Getting response for - ${responseId}`);
 	try {
-		const response = await executeFunctions.helpers.request({
-			method: 'GET',
-			url: `${baseUrl}/response/${responseId}`,
-			headers: headers,
-			json: true,
-		});
+		const response = await vlmRun.response.retrieve(responseId);
 
 		console.log(`Response Status - ${response.status}`);
 
-		return response;
+		return response as PredictionResponse;
 	} catch (error) {
 		if (error.response && error.response.data && error.response.data.detail) {
 			throw new NodeOperationError(
-				executeFunctions.getNode(),
+				ef.getNode(),
 				`API Error: ${error.response.data.detail}`,
 			);
 		} else {
@@ -217,14 +197,14 @@ export async function getResponse(
 }
 
 export async function getResponseWithRetry(
-	executeFunctions: IExecuteFunctions,
+	ef: IExecuteFunctions,
 	responseId: string,
 ): Promise<IDataObject> {
 	let attempts = 0;
 	while (attempts < MAX_ATTEMPTS) {
 		console.log(`Getting response, attempt : ${attempts}`);
 
-		const response = await getResponse(executeFunctions, responseId);
+		const response = await getResponse(ef, responseId);
 
 		if (response.status === 'completed') {
 			return response;
@@ -241,23 +221,16 @@ export async function generateImageRequest(
 	ef: IExecuteFunctions,
 	request: ImageRequest,
 ): Promise<PredictionResponse> {
-	const headers = await getCommonHeaders(ef);
-	const baseUrl = await getBaseUrl(ef);
+	const vlmRun = await initializeVlmRun(ef);
 
 	const payload = {
 		image: `data:${request.mimeType};base64,${request.image}`,
 		model: request.model,
-		domain: request.domain,
+		domain: request.domain as ImageGenerateParams['domain'],
 	};
 
 	try {
-		const response = await ef.helpers.request({
-			method: 'POST',
-			url: `${baseUrl}/image/generate`,
-			headers: headers,
-			body: JSON.stringify(payload),
-			json: true,
-		});
+		const response = await vlmRun.image.generate(payload);
 
 		return response as PredictionResponse;
 	} catch (error) {
@@ -271,10 +244,9 @@ export async function generateImageRequest(
 
 export async function generateImageEmbedding(
 	ef: IExecuteFunctions,
-	request: ImageRequest,
+	request: ImageEmbeddingRequest,
 ): Promise<PredictionResponse> {
-	const headers = await getCommonHeaders(ef);
-	const baseUrl = await getBaseUrl(ef);
+	const vlmRun = await initializeVlmRun(ef);
 
 	const payload = {
 		image: `data:${request.mimeType};base64,${request.image}`,
@@ -283,13 +255,7 @@ export async function generateImageEmbedding(
 	};
 
 	try {
-		const response = await ef.helpers.request({
-			method: 'POST',
-			url: `${baseUrl}/experimental/image/embeddings`,
-			headers: headers,
-			body: JSON.stringify(payload),
-			json: true,
-		});
+		const response = await vlmRun.experimental.image.embeddings.create(payload);
 
 		return response as PredictionResponse;
 	} catch (error) {
@@ -305,23 +271,17 @@ export async function generateWebpageRequest(
 	ef: IExecuteFunctions,
 	request: WebpagePredictionRequest,
 ): Promise<PredictionResponse> {
-	const headers = await getCommonHeaders(ef);
-	const baseUrl = await getBaseUrl(ef);
+	const vlmRun = await initializeVlmRun(ef);
 
 	const payload = {
 		url: request.url,
 		model: request.model,
-		domain: request.domain,
+		domain: request.domain as WebGenerateParams['domain'],
 		mode: request.mode,
 	};
+
 	try {
-		const response = await ef.helpers.request({
-			method: 'POST',
-			url: `${baseUrl}/web/generate`,
-			headers: headers,
-			body: JSON.stringify(payload),
-			json: true,
-		});
+		const response = await vlmRun.web.generate(payload);
 
 		return response as PredictionResponse;
 	} catch (error) {

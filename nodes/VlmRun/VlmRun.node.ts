@@ -27,6 +27,9 @@ import {
 	OperationToDomain,
 	WebpagePredictionRequest,
 	AudioRequest,
+	DocumentEmbeddingRequest,
+	ImageEmbeddingRequest,
+	Model,
 } from './types';
 import { vlmRunOperations, vlmRunOptions, vlmRunResources, httpOperation } from './VlmRunDescription';
 
@@ -69,7 +72,7 @@ export class VlmRun implements INodeType {
 						Operation.PRESENTATION_PARSER,
 						Operation.FORM_FILLING,
 					];
-					const model = this.getNodeParameter('model', 0) as string;
+					const model = this.getNodeParameter('model', 0) as Model.VLM_1;
 					if (validDocumentOperations.includes(operation)) {
 						console.log('Started Operation - ', operation);
 						const item = items[i];
@@ -106,7 +109,7 @@ export class VlmRun implements INodeType {
 					}
 				} else if (resource === Resource.AUDIO_AI) {
 					if (operation === Operation.AUDIO_TRANSCRIPTION) {
-						const model = this.getNodeParameter('model', 0) as string;
+						const model = this.getNodeParameter('model', 0) as AudioRequest['model'];
 						console.log('Started Operation - ', operation);
 						const item = items[i];
 
@@ -120,7 +123,7 @@ export class VlmRun implements INodeType {
 						const audioRequest: AudioRequest = {
 							fileId: fileResponse.id,
 							model: model,
-							domain: OperationToDomain[operation],
+							domain: OperationToDomain[operation] as AudioRequest['domain'],
 							batch: false,
 						};
 						const initialResponse = await generateAudioRequest(this, audioRequest);
@@ -152,7 +155,7 @@ export class VlmRun implements INodeType {
 						});
 					}
 				} else if (resource === Resource.AGENT_AI) {
-					const model = this.getNodeParameter('model', 0) as string;
+					const model = this.getNodeParameter('model', 0) as WebpagePredictionRequest['model'];
 					if (
 						operation === Operation.GITHUB_AGENT ||
 						operation === Operation.MARKET_RESEARCH_AGENT
@@ -173,7 +176,7 @@ export class VlmRun implements INodeType {
 						});
 					}
 				} else if (resource === Resource.EXPERIMENTAL) {
-					const model = this.getNodeParameter('model', 0) as string;
+					const model = this.getNodeParameter('model', 0) as DocumentEmbeddingRequest['model'];
 					if (operation === Operation.DOCUMENT_EMBEDDING) {
 						console.log('Started Operation - ', operation);
 						const item = items[i];
@@ -185,7 +188,7 @@ export class VlmRun implements INodeType {
 						this.sendMessageToUI('File uploaded...');
 
 						// Step 2: Generate structured output
-						const documentRequest: DocumentRequest = {
+						const documentRequest: DocumentEmbeddingRequest = {
 							fileId: fileResponse.id,
 							model: model,
 							batch: false,
@@ -283,7 +286,7 @@ async function processImage(ef: IExecuteFunctions, item: INodeExecutionData): Pr
 }
 
 async function imageRequest(ef: IExecuteFunctions, item: INodeExecutionData): Promise<IDataObject> {
-	const model = ef.getNodeParameter('model', 0) as string;
+	const model = ef.getNodeParameter('model', 0) as ImageRequest['model'];
 	const operation = ef.getNodeParameter('operation', 0) as string;
 
 	const binaryData = await processImage(ef, item);
@@ -301,11 +304,11 @@ async function imageEmbedding(
 	ef: IExecuteFunctions,
 	item: INodeExecutionData,
 ): Promise<IDataObject> {
-	const model = ef.getNodeParameter('model', 0) as string;
+	const model = ef.getNodeParameter('model', 0) as ImageEmbeddingRequest['model'];
 
 	const binaryData = await processImage(ef, item);
 
-	const imageRequest: ImageRequest = {
+	const imageRequest: ImageEmbeddingRequest = {
 		image: binaryData.data,
 		mimeType: binaryData.mimeType,
 		model: model,
