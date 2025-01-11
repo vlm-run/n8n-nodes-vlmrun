@@ -1,74 +1,93 @@
-<img width="1220" alt="image" src="https://github.com/user-attachments/assets/248dd464-066c-4d52-b937-12561fc6f98d">
+<div align="center">
+<p align="center" style="width: 100%;">
+    <img src="./assets/vlm-black.svg" alt="VLM Run Logo" width="80" style="margin-bottom: -5px; color: #2e3138; vertical-align: middle; padding-right: 5px;"><br>
+</p>
+<h2>n8n-nodes-vlmrun</h2>
+<p align="center">
+<a href="https://vlm.run"><b>Website</b></a> | <a href="https://docs.vlm.run/"><b>Docs</b></a> | <a href="https://docs.vlm.run/blog"><b>Blog</b></a> | <a href="https://discord.gg/CCY8cYNC"><b>Discord</b></a>
+</p>
+<p align="center">
+<a href="https://www.npmjs.com/package/@vlm-run/n8n-nodes-vlmrun"><img alt="NPM Version" src="https://badge.fury.io/js/%40vlm-run%2Fn8n-nodes-vlmrun.svg"></a>
+<a href="https://github.com/vlm-run/n8n-nodes-vlmrun/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/vlm-run/n8n-nodes-vlmrun.svg"></a>
+<a href="https://discord.gg/4jgyECY4rq"><img alt="Discord" src="https://img.shields.io/badge/discord-chat-purple?color=%235765F2&label=discord&logo=discord"></a>
+<a href="https://twitter.com/vlmrun"><img alt="Twitter Follow" src="https://img.shields.io/twitter/follow/vlmrun.svg?style=social&logo=twitter"></a>
+</p>
+</div>
 
-# n8n-nodes-vlmrun
+This is an n8n community node. It lets you use [VLM Run](https://vlm.run) in your n8n workflows.
 
-This repo contains custom [n8n](n8n.io) nodes for [VLM Run](https://vlm.run).
+VLM Run is a unified gateway for Visual AI that enables you to extract structured data from unstructured visual content like images, videos, and documents using Vision Language Models (VLMs).
 
-## Prerequisites
+[n8n](https://n8n.io) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
-You need the following installed on your development machine:
+## 💾 Installation
 
-- [git](https://git-scm.com/downloads)
-- Node.js and pnpm. Minimum version Node 18. You can find instructions on how to install both using nvm (Node Version Manager) for Linux, Mac, and WSL [here](https://github.com/nvm-sh/nvm). For Windows users, refer to Microsoft's guide to [Install NodeJS on Windows](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows).
-- Install n8n with:
-  ```
-  pnpm install n8n -g
-  ```
-- Recommended: follow n8n's guide to [set up your development environment](https://docs.n8n.io/integrations/creating-nodes/build/node-development-environment/).
+Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
 
-## Using this starter
-
-These are the basic steps for working with the starter. For detailed guidance on creating and publishing nodes, refer to the [documentation](https://docs.n8n.io/integrations/creating-nodes/).
-
-1. [Generate a new repository](https://github.com/n8n-io/n8n-nodes-starter/generate) from this template repository.
-2. Clone your new repo:
-   ```
-   git clone git@github.com:autonomi-ai/n8n-nodes-vlmrun.git
-   ```
-3. Run `pnpm i` to install dependencies.
-4. Open the project in your editor.
-5. Browse the examples in `/nodes` and `/credentials`. Modify the examples, or replace them with your own nodes.
-6. Update the `package.json` to match your details.
-7. Run `pnpm lint` to check for errors or `pnpm lintfix` to automatically fix errors when possible.
-8. Test your node locally. Refer to [Run your node locally](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/) for guidance.
-
-```
-export VLMRUN_API_BASE_URL='https://api.vlm.run/v1'
-echo $VLMRUN_API_BASE_URL
-(n8n-nodes-vlmrun)
-pnpm run build
-pnpm link --global
-
-n8n
-cd ~/.n8n
-mkdir custom
-cd custom
-pnpm init
-pnpm link --global @vlm-run/n8n-nodes-vlmrun
-
-(restart n8n)
-n8n
-(search for VlmRun)
+```bash
+npm install n8n-nodes-vlmrun
 ```
 
-9. Replace this README with documentation for your node. Use the [README_TEMPLATE](README_TEMPLATE.md) to get started.
-10. Update the LICENSE file to use your details.
-11. [Publish](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry) your package to npm.
+## ⚙️ Operations
 
-## More information
+- **Extract Data**: Extract structured data from images using VLM Run's pre-defined schemas
+- **Custom Schema**: Use your own custom schema to extract specific data from visual content
+- **Process Documents**: Extract information from documents like invoices, IDs, and more
+- **Visual ETL**: Integrate visual data extraction into your automated workflows
 
-Refer to our [documentation on creating nodes](https://docs.n8n.io/integrations/creating-nodes/) for detailed information on building your own nodes.
+## 🔑 Credentials
 
-## Screenshots
+1. Sign up for a VLM Run account at [vlm.run](https://vlm.run)
+2. Get your API key from the dashboard
+3. Use the API key in the n8n VLM Run node credentials
+
+## 📦 Compatibility
+
+- Requires n8n version 1.0.0 or later
+- Node.js version 18 or later
+
+## 📖 Usage
+
+1. **Configure Credentials**:
+   - Add your VLM Run API credentials in n8n
+   - Set the API base URL (default: https://api.vlm.run/v1)
+
+2. **Add VLM Run Node**:
+   - Search for "VLM Run" in the n8n nodes panel
+   - Add it to your workflow
+
+3. **Configure Node**:
+   - Select the operation (Extract Data, Custom Schema, etc.)
+   - Provide the input image URL or file
+   - Choose or define the schema for data extraction
+   - Configure any additional parameters
+
+## 📸 Screenshots
 
 Here are some screenshots of the n8n-nodes-vlmrun in action:
 
 ![VLM Run Node Overview](assets/vlmrun-overview.png)
-_Overview of the VLM Run node in n8n_
+*Overview of the VLM Run node in n8n*
 
 ![VLM Run Workflow Example](assets/vlmrun-workflow.png)
-_Example workflow using the VLM Run node_
+*Example workflow using the VLM Run node*
 
-## License
+## 🔗 Resources
 
-[MIT](https://github.com/n8n-io/n8n-nodes-starter/blob/master/LICENSE.md)
+- [n8n Community Nodes Documentation](https://docs.n8n.io/integrations/community-nodes/)
+- [VLM Run Documentation](https://docs.vlm.run)
+- [VLM Run API Reference](https://docs.vlm.run/api)
+- [Example Workflows](https://n8n.io/workflows)
+
+## 📝 Version History
+
+### 0.1.5 (Current)
+- Initial public release
+- Basic VLM Run integration
+- Support for pre-defined schemas
+- Custom schema support
+- Document processing capabilities
+
+## 📄 License
+
+[MIT](LICENSE)
