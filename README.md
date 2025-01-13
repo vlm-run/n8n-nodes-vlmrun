@@ -35,9 +35,37 @@ npm install n8n-nodes-vlmrun
 - **Process Documents**: Extract information from documents like invoices, IDs, and more
 - **Visual ETL**: Integrate visual data extraction into your automated workflows
 
+## 🎯 Available Actions
+
+### 🗂️ Doc AI Actions
+
+- **Resume Parser**: Parse and extract structured data from resumes
+- **Invoice Parser**: Extract information from invoice documents
+- **Presentation Parser**: Parse and analyze presentation files
+- **AI Assisted Form Filling**: Automated form filling using AI
+
+### 🖼️ Image AI Actions
+
+- **Image Captioning**: Generate descriptive captions for images
+
+### 🎵 Audio AI Actions
+
+- **Audio Transcription**: Convert audio content to text
+
+### 🤖 Agent AI Actions
+
+- **Github**: GitHub repository analysis and insights
+- **LinkedIn**: LinkedIn profile and data processing
+- **Market Research**: Automated market research analysis
+
+### 🧪 Experimental Actions
+
+- **Image Embeddings**: Generate embeddings from images
+- **Document Embeddings**: Create embeddings from documents
+
 ## 🔑 Credentials
 
-1. Sign up for a VLM Run account at [vlm.run](https://vlm.run)
+1. Sign up for a VLM Run account at [vlm.run](https://app.vlm.run/)
 2. Get your API key from the dashboard
 3. Use the API key in the n8n VLM Run node credentials
 
@@ -49,10 +77,12 @@ npm install n8n-nodes-vlmrun
 ## 📖 Usage
 
 1. **Configure Credentials**:
+
    - Add your VLM Run API credentials in n8n
    - Set the API base URL (default: https://api.vlm.run/v1)
 
 2. **Add VLM Run Node**:
+
    - Search for "VLM Run" in the n8n nodes panel
    - Add it to your workflow
 
@@ -67,21 +97,22 @@ npm install n8n-nodes-vlmrun
 Here are some screenshots of the n8n-nodes-vlmrun in action:
 
 ![VLM Run Node Overview](assets/vlmrun-overview.png)
-*Overview of the VLM Run node in n8n*
+_Overview of the VLM Run node in n8n_
 
 ![VLM Run Workflow Example](assets/vlmrun-workflow.png)
-*Example workflow using the VLM Run node*
+_Example workflow using the VLM Run node_
 
 ## 🔗 Resources
 
 - [n8n Community Nodes Documentation](https://docs.n8n.io/integrations/community-nodes/)
-- [VLM Run Documentation](https://docs.vlm.run)
-- [VLM Run API Reference](https://docs.vlm.run/api)
+- [VLM Run Documentation](https://docs.vlm.run/introduction)
+- [VLM Run API Reference](https://docs.vlm.run/api-reference/v1/health)
 - [Example Workflows](https://n8n.io/workflows)
 
 ## 📝 Version History
 
 ### 0.1.5 (Current)
+
 - Initial public release
 - Basic VLM Run integration
 - Support for pre-defined schemas
