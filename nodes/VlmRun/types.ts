@@ -2,8 +2,16 @@ import { IDataObject } from 'n8n-workflow';
 
 export interface DocumentRequest {
 	fileId: string;
-	model: string;
-	domain?: Domain;
+	model: Model.VLM_1;
+	domain?: Domain
+	batch?: boolean;
+	session_id?: string;
+}
+
+export interface DocumentEmbeddingRequest {
+	fileId: string;
+	model: Model.VLM_1_EMBEDDINGS;
+	domain?: Domain
 	batch?: boolean;
 	session_id?: string;
 }
@@ -12,11 +20,25 @@ export interface ImageRequest {
 	fileId?: string;
 	image: string;
 	mimeType: string;
-	model: string;
+	model: Model.VLM_1;
+	domain?: Domain
+}
+
+export interface ImageEmbeddingRequest {
+	fileId?: string;
+	image: string;
+	mimeType: string;
+	model: Model.VLM_1_EMBEDDINGS;
 	domain?: Domain;
 }
 
-export interface AudioRequest extends DocumentRequest {}
+export interface AudioRequest {
+	fileId: string;
+	model: Model.VLM_1;
+	domain?: Domain.AudioTranscription;
+	batch?: boolean;
+	session_id?: string;
+}
 
 export interface PredictionResponse extends IDataObject {
 	id: string;
@@ -37,7 +59,7 @@ export interface FileResponse extends IDataObject {
 
 export interface WebpagePredictionRequest {
 	url: string;
-	model: string;
+	model: Model.VLM_1;
 	domain?: string;
 	mode: 'fast' | 'accurate';
 }
@@ -71,6 +93,13 @@ export const Operation = {
 	GET: 'GET',
 	POST: 'POST',
 };
+
+
+
+export enum Model {
+	VLM_1 = 'vlm-1',
+	VLM_1_EMBEDDINGS = 'vlm-1-embeddings',
+}
 
 export enum Domain {
 	// Public schemas
