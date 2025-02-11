@@ -16,13 +16,21 @@ import {
 	DocumentEmbeddingRequest,
 	ImageEmbeddingRequest,
 } from './types';
-import VlmRun, { toFile } from 'vlmrun';
-import { ImageGenerateParams, WebGenerateParams } from 'vlmrun/resources';
+import { VlmRun } from 'vlmrun';
 
 async function getBearerToken(ef: IExecuteFunctions): Promise<string> {
 	const credentials = (await ef.getCredentials('vlmRunApi')) as { apiKey: string };
 
 	return credentials.apiKey.trim();
+}
+
+async function getCommonHeaders(ef: IExecuteFunctions, contentType: 'json' | 'form' = 'json') {
+	const credentials = (await ef.getCredentials('vlmRunApi')) as { apiKey: string };
+	return {
+		'Content-Type': contentType === 'json' ? 'application/json' : 'multipart/form-data',
+		Accept: 'application/json',
+		Authorization: `Bearer ${credentials.apiKey}`,
+	};
 }
 
 async function getBaseUrl(ef: IExecuteFunctions): Promise<string> {
@@ -36,7 +44,7 @@ async function initializeVlmRun(ef: IExecuteFunctions): Promise<VlmRun> {
 
 	return new VlmRun({
 		baseURL: baseUrl,
-		bearerToken: bearerToken,
+		apiKey: bearerToken,
 	});
 }
 
@@ -51,8 +59,8 @@ export async function uploadFile(
 	form.append('file', buffer, { filename: fileName });
 
 	try {
-		const file = await toFile(buffer, fileName);
-		const uploadResponse = await vlmRun.files.create({
+		const file = new File([buffer], fileName, { type: 'application/pdf' });
+		const uploadResponse = await vlmRun.files.upload({
 			file: file,
 			purpose: 'assistants',
 		});
@@ -72,10 +80,6 @@ export async function getFiles(ef: IExecuteFunctions): Promise<FileResponse[]> {
 	const vlmRun = await initializeVlmRun(ef);
 	const skip = 0;
 	const limit = 10;
-
-	const queryParams = new URLSearchParams();
-	if (skip !== undefined) queryParams.append('skip', skip.toString());
-	if (limit !== undefined) queryParams.append('limit', limit.toString());
 
 	try {
 		const filesResponse = await vlmRun.files.list({ limit: limit, skip: skip });
@@ -98,10 +102,14 @@ export async function generateDocumentRequest(
 
 	try {
 		const generateResponse = await vlmRun.document.generate({
-			file_id: request.fileId,
+			fileId: request.fileId,
 			model: request.model,
-			domain: request.domain,
 			batch: request.batch,
+			domain: request.domain!,
+			metadata: {
+				sessionId: request.session_id,
+			}
+
 		});
 		console.log('Document generated...');
 
@@ -124,15 +132,16 @@ export async function generateAudioRequest(
 ): Promise<PredictionResponse> {
 	const vlmRun = await initializeVlmRun(ef);
 
-	const payload = {
-		file_id: request.fileId,
-		model: request.model,
-		domain: request.domain,
-		batch: request.batch,
-	};
-
 	try {
-		const response = await vlmRun.audio.generate(payload);
+		const response = await vlmRun.audio.generate({
+			fileId: request.fileId,
+			model: request.model,
+			domain: request.domain!,
+			batch: request.batch,
+			metadata: {
+				sessionId: request.session_id,
+			},
+		});
 
 		return response as PredictionResponse;
 	} catch (error) {
@@ -145,16 +154,22 @@ export async function generateAudioRequest(
 }
 
 export async function generateDocumentEmbedding(
-	ef: IExecuteFunctions,
+	executeFunctions: IExecuteFunctions,
 	request: DocumentEmbeddingRequest,
 ): Promise<PredictionResponse> {
-	const vlmRun = await initializeVlmRun(ef);
-
+	const headers = await getCommonHeaders(executeFunctions);
+	const baseUrl = await getBaseUrl(executeFunctions);
+	console.log('Generating document embedding...');
 	try {
-		const generateResponse = await vlmRun.experimental.document.embeddings.create({
-			model: request.model,
-			file_id: request.fileId,
-			batch: request.batch,
+		const generateResponse = await executeFunctions.helpers.httpRequest({
+			method: 'POST',
+			url: `${baseUrl}/experimental/document/embeddings`,
+			headers: headers,
+			body: JSON.stringify({
+				model: request.model,
+				file_id: request.fileId,
+				batch: request.batch,
+			}),
 		});
 		console.log('Document embedding generated...');
 
@@ -162,7 +177,7 @@ export async function generateDocumentEmbedding(
 	} catch (error) {
 		if (error.response && error.response.data && error.response.data.detail) {
 			throw new NodeOperationError(
-				ef.getNode(),
+				executeFunctions.getNode(),
 				`API Error: ${error.response.data.detail}`,
 			);
 		} else {
@@ -179,7 +194,7 @@ export async function getResponse(
 
 	console.log(`Getting response for - ${responseId}`);
 	try {
-		const response = await vlmRun.response.retrieve(responseId);
+		const response = await vlmRun.predictions.get({ id: responseId });
 
 		console.log(`Response Status - ${response.status}`);
 
@@ -223,14 +238,12 @@ export async function generateImageRequest(
 ): Promise<PredictionResponse> {
 	const vlmRun = await initializeVlmRun(ef);
 
-	const payload = {
-		image: `data:${request.mimeType};base64,${request.image}`,
-		model: request.model,
-		domain: request.domain as ImageGenerateParams['domain'],
-	};
-
 	try {
-		const response = await vlmRun.image.generate(payload);
+		const response = await vlmRun.image.generate({
+			images: [`data:${request.mimeType};base64,${request.image}`],
+			model: request.model,
+			domain: request.domain!,
+		});
 
 		return response as PredictionResponse;
 	} catch (error) {
@@ -246,7 +259,8 @@ export async function generateImageEmbedding(
 	ef: IExecuteFunctions,
 	request: ImageEmbeddingRequest,
 ): Promise<PredictionResponse> {
-	const vlmRun = await initializeVlmRun(ef);
+	const headers = await getCommonHeaders(ef);
+	const baseUrl = await getBaseUrl(ef);
 
 	const payload = {
 		image: `data:${request.mimeType};base64,${request.image}`,
@@ -255,7 +269,13 @@ export async function generateImageEmbedding(
 	};
 
 	try {
-		const response = await vlmRun.experimental.image.embeddings.create(payload);
+		const response = await ef.helpers.request({
+			method: 'POST',
+			url: `${baseUrl}/experimental/image/embeddings`,
+			headers: headers,
+			body: JSON.stringify(payload),
+			json: true,
+		});
 
 		return response as PredictionResponse;
 	} catch (error) {
@@ -273,15 +293,13 @@ export async function generateWebpageRequest(
 ): Promise<PredictionResponse> {
 	const vlmRun = await initializeVlmRun(ef);
 
-	const payload = {
-		url: request.url,
-		model: request.model,
-		domain: request.domain as WebGenerateParams['domain'],
-		mode: request.mode,
-	};
-
 	try {
-		const response = await vlmRun.web.generate(payload);
+		const response = await vlmRun.web.generate({
+			url: request.url,
+			model: request.model,
+			domain: request.domain!,
+			mode: request.mode,
+		});
 
 		return response as PredictionResponse;
 	} catch (error) {
