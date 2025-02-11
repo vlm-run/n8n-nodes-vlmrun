@@ -14,26 +14,26 @@ export const vlmRunResources: INodeProperties = {
 			name: 'Image AI',
 			value: Resource.IMAGE_AI,
 		},
-		{
-			name: 'Audio AI',
-			value: Resource.AUDIO_AI,
-		},
+		// {
+		// 	name: 'Audio AI',
+		// 	value: Resource.AUDIO_AI,
+		// },
 		{
 			name: 'Agent AI',
 			value: Resource.AGENT_AI,
 		},
-		{
-			name: 'Experimental',
-			value: Resource.EXPERIMENTAL,
-		},
+		// {
+		// 	name: 'Experimental',
+		// 	value: Resource.EXPERIMENTAL,
+		// },
 		{
 			name: 'File',
 			value: Resource.FILE,
 		},
-		{
-			name: 'HTTP',
-			value: Resource.HTTP,
-		},
+		// {
+		// 	name: 'HTTP',
+		// 	value: Resource.HTTP,
+		// },
 	],
 	default: 'documentAi',
 	noDataExpression: true,
