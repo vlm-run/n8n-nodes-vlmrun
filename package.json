@@ -1,69 +1,69 @@
 {
-  "name": "@vlm-run/n8n-nodes-vlmrun",
-  "version": "0.1.6",
-  "description": "VLM Run Nodes for n8n",
-  "keywords": [
-    "n8n-community-node-package"
-  ],
-  "license": "MIT",
-  "homepage": "https://vlm.run",
-  "author": {
-    "name": "VLM Run Developers",
-    "email": "support@vlm.run"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/autonomi-ai/n8n-nodes-vlmrun.git"
-  },
-  "engines": {
-    "node": ">=18.10",
-    "pnpm": ">=9.1"
-  },
-  "packageManager": "pnpm@9.1.4",
-  "main": "index.js",
-  "scripts": {
-    "preinstall": "npx only-allow pnpm",
-    "build": "tsc && gulp build:icons",
-    "dev": "tsc --watch",
-    "format": "prettier nodes credentials --write",
-    "lint": "eslint nodes credentials package.json",
-    "lintfix": "eslint nodes credentials package.json --fix",
-    "clean": "rm -rf dist",
-    "prepublishOnly": "pnpm build && pnpm lint -c .eslintrc.prepublish.js nodes credentials package.json",
-    "test": "jest",
-    "test:watch": "jest --watch"
-  },
-  "files": [
-    "dist"
-  ],
-  "n8n": {
-    "n8nNodesApiVersion": 1,
-    "credentials": [
-      "dist/credentials/VlmRunApi.credentials.js"
-    ],
-    "nodes": [
-      "dist/nodes/VlmRun/VlmRun.node.js"
-    ]
-  },
-  "devDependencies": {
-    "@jest/globals": "^29.7.0",
-    "@types/jest": "^29.5.14",
-    "@types/node": "^22.5.5",
-    "@typescript-eslint/parser": "^7.15.0",
-    "eslint": "^8.56.0",
-    "eslint-plugin-n8n-nodes-base": "^1.16.1",
-    "gulp": "^4.0.2",
-    "jest": "^29.7.0",
-    "n8n-workflow": "*",
-    "prettier": "^3.3.2",
-    "ts-jest": "^29.2.5",
-    "typescript": "^5.5.3"
-  },
-  "peerDependencies": {
-    "n8n-workflow": "*"
-  },
-  "dependencies": {
-    "form-data": "^4.0.0",
-    "vlmrun": "^0.1.5"
-  }
+	"name": "@vlm-run/n8n-nodes-vlmrun",
+	"version": "0.1.6",
+	"description": "VLM Run Nodes for n8n",
+	"keywords": [
+		"n8n-community-node-package"
+	],
+	"license": "MIT",
+	"homepage": "https://vlm.run",
+	"author": {
+		"name": "VLM Run Developers",
+		"email": "support@vlm.run"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/autonomi-ai/n8n-nodes-vlmrun.git"
+	},
+	"engines": {
+		"node": ">=18.10",
+		"pnpm": ">=9.1"
+	},
+	"packageManager": "pnpm@9.1.4",
+	"main": "index.js",
+	"scripts": {
+		"preinstall": "npx only-allow pnpm",
+		"build": "tsc && gulp build:icons",
+		"dev": "tsc --watch",
+		"format": "prettier nodes credentials --write",
+		"lint": "eslint nodes credentials package.json",
+		"lintfix": "eslint nodes credentials package.json --fix",
+		"clean": "rm -rf dist",
+		"prepublishOnly": "pnpm build && pnpm lint -c .eslintrc.prepublish.js nodes credentials package.json",
+		"test": "jest",
+		"test:watch": "jest --watch"
+	},
+	"files": [
+		"dist"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"credentials": [
+			"dist/credentials/VlmRunApi.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/VlmRun/VlmRun.node.js"
+		]
+	},
+	"devDependencies": {
+		"@jest/globals": "^29.7.0",
+		"@types/jest": "^29.5.14",
+		"@types/node": "^22.5.5",
+		"@typescript-eslint/parser": "^7.15.0",
+		"eslint": "^8.56.0",
+		"eslint-plugin-n8n-nodes-base": "^1.16.1",
+		"gulp": "^4.0.2",
+		"jest": "^29.7.0",
+		"n8n-workflow": "*",
+		"prettier": "^3.3.2",
+		"ts-jest": "^29.2.5",
+		"typescript": "^5.5.3"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	},
+	"dependencies": {
+		"form-data": "^4.0.0",
+		"vlmrun": "0.2.12"
+	}
 }

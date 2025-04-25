@@ -1,224 +1,175 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { INodeExecutionData, IExecuteFunctions, IDataObject } from 'n8n-workflow';
 import { VlmRun } from '../VlmRun.node';
-import * as ApiService from '../ApiService';
-import { PredictionResponse } from '../types';
+import { ApiService } from '../ApiService';
+import { PredictionResponse, Resource, Operation } from '../types';
 
-describe('VlmRun Node - Image AI Operations', () => {
-  describe('Success Cases', () => {
-    let node: VlmRun;
-    let mockExecuteFunctions: IExecuteFunctions;
-    const fakeBase64Image = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+const TEST_IMAGE = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ';
+
+interface TestCase {
+  resource: string;
+  operation: string;
+  model: string;
+  expectedResult: Record<string, unknown>;
+}
+
+const createMockExecuteFunctions = (
+  params: Partial<Record<string, string>>,
+  withBinaryData = true,
+  continueOnFail = false,
+): IExecuteFunctions => ({
+  getNodeParameter: (paramName: string): string => params[paramName] || '',
+  getInputData: () => [{
+    ...(withBinaryData ? {
+      binary: {
+        data: {
+          data: TEST_IMAGE,
+          mimeType: 'image/png',
+          fileName: 'test.png',
+        },
+      },
+    } : {}),
+    json: {},
+  }],
+  helpers: {
+    returnJsonArray: (items: INodeExecutionData[]) => items,
+  },
+  continueOnFail: () => continueOnFail,
+}) as unknown as IExecuteFunctions;
+
+const createPredictionResponse = (data: Partial<PredictionResponse>): PredictionResponse => ({
+  id: 'test-id',
+  created_at: new Date().toISOString(),
+  completed_at: new Date().toISOString(),
+  status: 'completed',
+  ...data,
+});
+
+describe('VlmRun Node', () => {
+  let node: VlmRun;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    node = new VlmRun();
+  });
+
+  describe('Image AI Operations - Success Cases', () => {
+    const testCases: TestCase[] = [
+      {
+        resource: Resource.IMAGE,
+        operation: Operation.PRODUCT_CATALOG_PARSER,
+        model: 'vlm-1',
+        expectedResult: { result: 'TestCaption' },
+      },
+      {
+        resource: Resource.IMAGE,
+        operation: Operation.US_DRIVER_LICENSE_PARSER,
+        model: 'vlm-1',
+        expectedResult: { result: 'TestCaption' },
+      },
+    ];
 
     beforeEach(() => {
-      jest.clearAllMocks();
-      node = new VlmRun();
-      
-      // Mock API responses
-      jest.spyOn(ApiService, 'generateImageRequest').mockResolvedValue({
-        id: 'test-id-1',
-        created_at: new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-        status: 'completed',
-        response: { result: 'TestCaption' }
-      } as PredictionResponse);
-
-      jest.spyOn(ApiService, 'generateImageEmbedding').mockResolvedValue({
-        id: 'test-id-2',
-        created_at: new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-        status: 'completed',
-        response: { embeddings: [0.123, 0.456] }
-      } as PredictionResponse);
-
-      // Setup mock execute functions
-      mockExecuteFunctions = {
-        getInputData: () => [{
-          binary: {
-            data: {
-              data: fakeBase64Image,
-              mimeType: 'image/png',
-              fileName: 'test.png',
-            },
-          },
-          json: {},
-        }],
-        helpers: {
-          returnJsonArray: (items: INodeExecutionData[]) => items,
-        },
-      } as unknown as IExecuteFunctions;
+      jest.spyOn(ApiService, 'generateImageRequest').mockResolvedValue(
+        createPredictionResponse({ response: { result: 'TestCaption' } })
+      );
     });
 
-  it('should exist', () => {
-    expect(VlmRun).toBeDefined();
-  });
+    testCases.forEach(({ resource, operation, model, expectedResult }) => {
+      it(`should perform ${operation} successfully`, async () => {
+        // Arrange
+        const mockExecuteFunctions = createMockExecuteFunctions({
+          resource,
+          operation,
+          model,
+        });
 
-  it('should perform Image Cataloging successfully', async () => {
-    // Arrange
-    Object.assign(mockExecuteFunctions, {
-      getNodeParameter: (paramName: string): string => {
-        if (paramName === 'resource') return 'imageAi';
-        if (paramName === 'operation') return 'imageCataloging';
-        if (paramName === 'model') return 'vlm-1';
-        return '';
-      },
+        // Act
+        const result = await node.execute.call(mockExecuteFunctions);
+
+        // Assert
+        const response = result[0][0].json as IDataObject;
+        expect(response.status).toBe('completed');
+        expect(response.response).toEqual(expectedResult);
+      });
     });
-
-    // Act
-    const result = await node.execute.call(mockExecuteFunctions);
-
-    // Assert
-    const response = result[0][0].json as IDataObject;
-    expect(response.status).toBe('completed');
-    expect((response.response as IDataObject).result).toBe('TestCaption');
-  });
-
-  it('should perform Image Captioning successfully', async () => {
-    // Arrange
-    Object.assign(mockExecuteFunctions, {
-      getNodeParameter: (paramName: string): string => {
-        if (paramName === 'resource') return 'imageAi';
-        if (paramName === 'operation') return 'imageCaptioning';
-        if (paramName === 'model') return 'vlm-1';
-        return '';
-      },
-    });
-
-    // Act
-    const result = await node.execute.call(mockExecuteFunctions);
-
-    // Assert
-    const response = result[0][0].json as IDataObject;
-    expect(response.status).toBe('completed');
-    expect((response.response as IDataObject).result).toBe('TestCaption');
-  });
-
-  it('should perform Image Embedding successfully', async () => {
-    // Arrange
-    Object.assign(mockExecuteFunctions, {
-      getNodeParameter: (paramName: string): string => {
-        if (paramName === 'resource') return 'experimental';
-        if (paramName === 'operation') return 'imageEmbedding';
-        if (paramName === 'model') return 'vlm-1';
-        return '';
-      },
-    });
-
-    // Act
-    const result = await node.execute.call(mockExecuteFunctions);
-
-    // Assert
-    const response = result[0][0].json as IDataObject;
-    expect(response.status).toBe('completed');
-    expect((response.response as IDataObject).embeddings).toEqual([0.123, 0.456]);
-  });
   });
 
   describe('Error Cases', () => {
-    let node: VlmRun;
-    const fakeBase64Image = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
-
-    beforeEach(() => {
-      jest.clearAllMocks();
-      node = new VlmRun();
-    });
-
-    it('should handle missing binary data', async () => {
-      // Arrange
-      const mockExecuteFunctions = {
-        getNodeParameter: (paramName: string): string => {
-          if (paramName === 'resource') return 'imageAi';
-          if (paramName === 'operation') return 'imageCataloging';
-          if (paramName === 'model') return 'vlm-1';
-          return '';
-        },
-        getInputData: () => [{
-          json: {},
-        }],
-        helpers: {
-          returnJsonArray: (items: INodeExecutionData[]) => items,
-        },
-        continueOnFail: () => true,
-      } as unknown as IExecuteFunctions;
-
-      // Act
-      const result = await node.execute.call(mockExecuteFunctions);
-
-      // Assert
-      const response = result[0][0].json as IDataObject;
-      expect(response).toHaveProperty('error');
-      expect(typeof response.error).toBe('string');
-    });
-
-    it('should handle API errors', async () => {
-      // Arrange
-      const mockError = new Error('API Error');
-      jest.spyOn(ApiService, 'generateImageRequest').mockRejectedValue(mockError);
-
-      const mockExecuteFunctions = {
-        getNodeParameter: (paramName: string): string => {
-          if (paramName === 'resource') return 'imageAi';
-          if (paramName === 'operation') return 'imageCataloging';
-          if (paramName === 'model') return 'vlm-1';
-          return '';
-        },
-        getInputData: () => [{
-          binary: {
-            data: {
-              data: fakeBase64Image,
-              mimeType: 'image/png',
-              fileName: 'test.png',
-            },
+    const errorTestCases = [
+      {
+        name: 'missing binary data',
+        setup: () => createMockExecuteFunctions(
+          {
+            resource: Resource.IMAGE,
+            operation: Operation.PRODUCT_CATALOG_PARSER,
+            model: 'vlm-1',
           },
-          json: {},
-        }],
-        helpers: {
-          returnJsonArray: (items: INodeExecutionData[]) => items,
-        },
-        continueOnFail: () => true,
-      } as unknown as IExecuteFunctions;
-
-      // Act
-      const result = await node.execute.call(mockExecuteFunctions);
-
-      // Assert
-      const response = result[0][0].json as IDataObject;
-      expect(response).toHaveProperty('error');
-      expect(response.error).toBe('API Error');
-    });
-
-    it('should handle invalid image data', async () => {
-      // Arrange
-      const mockExecuteFunctions = {
-        getNodeParameter: (paramName: string): string => {
-          if (paramName === 'resource') return 'imageAi';
-          if (paramName === 'operation') return 'imageCataloging';
-          if (paramName === 'model') return 'vlm-1';
-          return '';
-        },
-        getInputData: () => [{
-          binary: {
-            data: {
-              data: 'invalid-base64-data',
-              mimeType: 'image/png',
-              fileName: 'test.png',
+          false,
+          true
+        ),
+      },
+      {
+        name: 'API errors',
+        setup: () => {
+          jest.spyOn(ApiService, 'generateImageRequest')
+            .mockRejectedValue(new Error('API Error'));
+          return createMockExecuteFunctions(
+            {
+              resource: Resource.IMAGE,
+              operation: Operation.PRODUCT_CATALOG_PARSER,
+              model: 'vlm-1',
             },
-          },
-          json: {},
-        }],
-        helpers: {
-          returnJsonArray: (items: INodeExecutionData[]) => items,
+            true,
+            true
+          );
         },
-        continueOnFail: () => true,
-      } as unknown as IExecuteFunctions;
+        expectedError: 'API Error',
+      },
+      {
+        name: 'invalid image data',
+        setup: () => {
+          const mockFunctions = createMockExecuteFunctions(
+            {
+              resource: Resource.IMAGE,
+              operation: Operation.PRODUCT_CATALOG_PARSER,
+              model: 'vlm-1',
+            },
+            true,
+            true
+          );
+          mockFunctions.getInputData = () => [{
+            binary: {
+              data: {
+                data: 'invalid-base64-data',
+                mimeType: 'image/png',
+                fileName: 'test.png',
+              },
+            },
+            json: {},
+          }];
+          return mockFunctions;
+        },
+      },
+    ];
 
-      // Act
-      const result = await node.execute.call(mockExecuteFunctions);
+    errorTestCases.forEach(({ name, setup, expectedError }) => {
+      it(`should handle ${name}`, async () => {
+        // Arrange
+        const mockExecuteFunctions = setup();
 
-      // Assert
-      const response = result[0][0].json as IDataObject;
-      expect(response).toHaveProperty('error');
-      expect(typeof response.error).toBe('string');
+        // Act
+        const result = await node.execute.call(mockExecuteFunctions);
+
+        // Assert
+        const response = result[0][0].json as IDataObject;
+        expect(response).toHaveProperty('error');
+        if (expectedError) {
+          expect(response.error).toBe(expectedError);
+        } else {
+          expect(typeof response.error).toBe('string');
+        }
+      });
     });
   });
 });

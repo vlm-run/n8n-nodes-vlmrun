@@ -34,34 +34,28 @@ npm install n8n-nodes-vlmrun
 - **Custom Schema**: Use your own custom schema to extract specific data from visual content
 - **Process Documents**: Extract information from documents like invoices, IDs, and more
 - **Visual ETL**: Integrate visual data extraction into your automated workflows
+- **Custom Domains**: Select from various range of domains for specific use cases
 
 ## 🎯 Available Actions
 
-### 🗂️ Doc AI Actions
+### 🗂️ Document Actions
 
 - **Resume Parser**: Parse and extract structured data from resumes
 - **Invoice Parser**: Extract information from invoice documents
-- **Presentation Parser**: Parse and analyze presentation files
-- **AI Assisted Form Filling**: Automated form filling using AI
+- **Utility Bill Parser**: Extract information from utility bills
+- **Domain Selection**: Choose from available domains to optimize analysis for your specific use case
 
 ### 🖼️ Image AI Actions
 
-- **Image Captioning**: Generate descriptive captions for images
+- **Product Catalog Parser**: Extract information from product catalogs
+- **US Driver License Parser**: Parse and extract data from US driver licenses
+- **Domain-Specific Analysis**: Select appropriate domains for specialized image analysis tasks
 
-### 🎵 Audio AI Actions
+### 🎵 Audio & Video Actions
 
-- **Audio Transcription**: Convert audio content to text
-
-### 🤖 Agent AI Actions
-
-- **Github**: GitHub repository analysis and insights
-- **LinkedIn**: LinkedIn profile and data processing
-- **Market Research**: Automated market research analysis
-
-### 🧪 Experimental Actions
-
-- **Image Embeddings**: Generate embeddings from images
-- **Document Embeddings**: Create embeddings from documents
+- **Audio Processing**: Process and analyze audio files
+- **Video Processing**: Process and analyze video files
+- **Domain-Based Processing**: Choose specific domains for optimized audio/video analysis
 
 ## 🔑 Credentials
 
