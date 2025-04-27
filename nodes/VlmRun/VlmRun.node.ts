@@ -30,7 +30,9 @@ export class VlmRun implements INodeType {
 		defaults: {
 			name: 'VLM Run',
 		},
+		// eslint-disable-next-line n8n-nodes-base/node-class-description-inputs-wrong-regular-node
 		inputs: [NodeConnectionType.Main],
+		// eslint-disable-next-line n8n-nodes-base/node-class-description-outputs-wrong
 		outputs: [NodeConnectionType.Main],
 		credentials: [
 			{
