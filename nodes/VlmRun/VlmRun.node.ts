@@ -60,7 +60,6 @@ export class VlmRun implements INodeType {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
 		const resource = this.getNodeParameter('resource', 0) as string;
-		const operation = this.getNodeParameter('operation', 0) as string;
 
 		for (let i = 0; i < items.length; i++) {
 			try {
@@ -83,7 +82,7 @@ export class VlmRun implements INodeType {
 							fileId: fileResponse.id,
 							model,
 							domain,
-							batch: false,
+							batch: true
 						};
 
 						let initialResponse;
@@ -109,6 +108,7 @@ export class VlmRun implements INodeType {
 					}
 
 					case Resource.FILE: {
+						const operation = this.getNodeParameter('operation', 0) as string;
 						if (operation === 'fileList') {
 							const files = await ApiService.getFiles(this);
 							response = { files };

@@ -1,2 +1,2 @@
-export const MAX_ATTEMPTS = 30;
-export const RETRY_DELAY = 4000;
+export const MAX_ATTEMPTS = 100;
+export const RETRY_DELAY = 5000;
