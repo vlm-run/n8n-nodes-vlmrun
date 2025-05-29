@@ -9,13 +9,14 @@ import {
 	INodePropertyOptions,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import {
-	Resource,
-	Model,
-	FileRequest,
-} from './types';
+import { Resource, Model, FileRequest } from './types';
 import { ApiService } from './ApiService';
-import { fileCategories, vlmRunOperations, vlmRunOptions, httpOperation } from './constants/nodeDescription';
+import {
+	fileCategories,
+	vlmRunOperations,
+	vlmRunOptions,
+	httpOperation,
+} from './constants/nodeDescription';
 import { processFile, processImageRequest } from './utils';
 
 export class VlmRun implements INodeType {
@@ -41,7 +42,7 @@ export class VlmRun implements INodeType {
 			},
 		],
 		properties: [fileCategories, ...vlmRunOperations, ...vlmRunOptions, ...httpOperation],
-	}
+	};
 
 	methods = {
 		loadOptions: {
@@ -82,7 +83,8 @@ export class VlmRun implements INodeType {
 							fileId: fileResponse.id,
 							model,
 							domain,
-							batch: true
+							batch: true,
+							callbackUrl: this.getNodeParameter('callbackUrl', 0) as string,
 						};
 
 						let initialResponse;
@@ -94,11 +96,7 @@ export class VlmRun implements INodeType {
 							initialResponse = await ApiService.generateVideoRequest(this, request);
 						}
 
-						if (initialResponse.status === 'completed') {
-							response = initialResponse;
-						} else {
-							response = await ApiService.getResponseWithRetry(this, initialResponse.id);
-						}
+						response = initialResponse;
 						break;
 					}
 
@@ -126,7 +124,10 @@ export class VlmRun implements INodeType {
 					}
 
 					default:
-						throw new NodeOperationError(this.getNode(), `The resource "${resource}" is not supported!`);
+						throw new NodeOperationError(
+							this.getNode(),
+							`The resource "${resource}" is not supported!`,
+						);
 				}
 
 				returnData.push({ json: response });
