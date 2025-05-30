@@ -1,6 +1,6 @@
 {
 	"name": "@vlm-run/n8n-nodes-vlmrun",
-	"version": "2.0.3",
+	"version": "2.0.4",
 	"description": "VLM Run Nodes for n8n",
 	"keywords": [
 		"n8n-community-node-package"
@@ -64,6 +64,6 @@
 	},
 	"dependencies": {
 		"form-data": "^4.0.0",
-		"vlmrun": "0.2.19"
+		"vlmrun": "0.2.21"
 	}
 }
