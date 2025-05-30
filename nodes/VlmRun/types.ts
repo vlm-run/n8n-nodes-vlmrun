@@ -6,7 +6,7 @@ export interface FileRequest {
 	domain?: string;
 	batch?: boolean;
 	session_id?: string;
-	callback_url?: string;
+	callbackUrl?: string;
 }
 
 export interface ImageRequest {
@@ -14,7 +14,7 @@ export interface ImageRequest {
 	image: string;
 	mimeType: string;
 	model: Model.VLM_1;
-	domain?: string
+	domain?: string;
 }
 
 export interface PredictionResponse extends IDataObject {
