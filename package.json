@@ -64,6 +64,6 @@
 	},
 	"dependencies": {
 		"form-data": "^4.0.0",
-		"vlmrun": "0.2.19"
+		"vlmrun": "0.2.21"
 	}
 }
