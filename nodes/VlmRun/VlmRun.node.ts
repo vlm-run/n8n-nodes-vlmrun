@@ -73,7 +73,10 @@ export class VlmRun implements INodeType {
 						const model = this.getNodeParameter('model', 0) as Model.VLM_1;
 						const { buffer, fileName } = await processFile(this, items[i], i);
 						const domain = this.getNodeParameter('domain', 0) as string;
-
+						const batch = this.getNodeParameter('processAsynchronously', 0) as boolean;
+						const callbackUrl = batch
+							? (this.getNodeParameter('callbackUrl', 0) as string)
+							: undefined;
 						// Upload file
 						const fileResponse = await ApiService.uploadFile(this, buffer, fileName);
 						this.sendMessageToUI('File uploaded...');
@@ -83,8 +86,8 @@ export class VlmRun implements INodeType {
 							fileId: fileResponse.id,
 							model,
 							domain,
-							batch: true,
-							callbackUrl: this.getNodeParameter('callbackUrl', 0) as string,
+							batch,
+							callbackUrl,
 						};
 
 						let initialResponse;
