@@ -1,7 +1,6 @@
 import {
 	IExecuteFunctions,
 	IDataObject,
-	IHttpRequestMethods,
 	ILoadOptionsFunctions,
 } from 'n8n-workflow';
 import {
@@ -14,7 +13,6 @@ import { VlmRun } from 'vlmrun';
 import {
 	FileService,
 	PredictionService,
-	HttpService,
 	DomainService,
 } from './services';
 
@@ -32,7 +30,6 @@ export class ApiService {
 		return {
 			fileService: new FileService(ef, client),
 			predictionService: new PredictionService(ef, client),
-			httpService: new HttpService(ef, client),
 			domainService: new DomainService(ef, client),
 		};
 	}
@@ -105,51 +102,5 @@ export class ApiService {
 	): Promise<IDataObject> {
 		const { predictionService } = await this.createServices(ef);
 		return predictionService.getPredictionWithRetry(responseId);
-	}
-
-	// HTTP Operations
-	static async makeCustomApiCall(ef: IExecuteFunctions) {
-		const { httpService } = await this.createServices(ef);
-		const url = ef.getNodeParameter('url', 0) as string;
-		const method = ef.getNodeParameter('operation', 0) as IHttpRequestMethods;
-		const isHeaderRequired = ef.getNodeParameter('isHeaderRequired', 0) as boolean;
-		const isQueryParamRequired = ef.getNodeParameter('isQueryParamRequired', 0) as boolean;
-		const isBodyRequired = method === 'POST' ? ef.getNodeParameter('isBodyRequired', 0) as boolean : false;
-		const typeofData = isBodyRequired ? ef.getNodeParameter('typeofData', 0) as 'jsonData' | 'formData' : undefined;
-
-		let headers;
-		let queryParams;
-		let body;
-
-		if (isHeaderRequired) {
-			headers = (ef.getNodeParameter('headers', 0) as any).header;
-		}
-
-		if (isQueryParamRequired) {
-			queryParams = (ef.getNodeParameter('params', 0) as any).param;
-		}
-
-		if (isBodyRequired && typeofData === 'jsonData') {
-			const bodyData = (ef.getNodeParameter('jsonBody', 0) as any).json;
-			if (bodyData) {
-				const jsonBody: Record<string, any> = {};
-				bodyData.forEach((item: { key: string; value: any }) => {
-					jsonBody[item.key] = typeof item.value === 'string' ?
-						(item.value.startsWith('{') ? JSON.parse(item.value) : item.value) :
-						item.value;
-				});
-				body = JSON.stringify(jsonBody);
-			}
-		}
-
-		return httpService.makeRequest({
-			url,
-			method,
-			headers,
-			queryParams,
-			body,
-			isBodyRequired,
-			typeofData,
-		});
 	}
 }
