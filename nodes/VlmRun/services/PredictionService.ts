@@ -8,7 +8,7 @@ export class PredictionService extends BaseService {
 		try {
 			const generateResponse = await this.client.document.generate({
 				fileId: request.fileId,
-				model: request.model,
+				model: request.model as string,
 				domain: request.domain as string,
 				batch: request.batch,
 				callbackUrl: request.callbackUrl,
@@ -23,7 +23,7 @@ export class PredictionService extends BaseService {
 		try {
 			const response = await this.client.audio.generate({
 				fileId: request.fileId,
-				model: request.model,
+				model: request.model as string,
 				domain: request.domain as string,
 				batch: request.batch,
 				callbackUrl: request.callbackUrl,
@@ -38,7 +38,7 @@ export class PredictionService extends BaseService {
 		try {
 			const response = await this.client.video.generate({
 				fileId: request.fileId,
-				model: request.model,
+				model: request.model as string,
 				domain: request.domain as string,
 				batch: request.batch,
 				callbackUrl: request.callbackUrl,
@@ -53,7 +53,7 @@ export class PredictionService extends BaseService {
 		try {
 			const response = await this.client.image.generate({
 				images: [`data:${request.mimeType};base64,${request.image}`],
-				model: request.model,
+				model: request.model as string,
 				domain: request.domain as string,
 			});
 			return response as PredictionResponse;

@@ -19,7 +19,7 @@ export class FileService extends BaseService {
         }
     }
 
-    async list(skip = 0, limit = 10): Promise<FileResponse[]> {
+    async list(skip = 0, limit = 100): Promise<FileResponse[]> {
         try {
             const filesResponse = await this.client.files.list({ limit, skip });
             return filesResponse as FileResponse[];
