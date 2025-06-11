@@ -18,7 +18,6 @@ This is an n8n community node. It lets you use [VLM Run](https://vlm.run) in you
 
 VLM Run is a unified gateway for Visual AI that enables you to extract structured data from unstructured visual content like images, videos, audio, and documents using Vision Language Models (VLMs).
 
-[n8n](https://n8n.io) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
 ## 💾 Installation
 
@@ -30,14 +29,11 @@ npm i @vlm-run/n8n-nodes-vlmrun
 
 ## ⚙️ Operations
 
-This node supports the following operations:
-
-- **Audio Analysis**: Analyze audio files for transcription, speaker identification, sentiment analysis, and more.
-- **Document Extraction**: Extract structured data from documents such as resumes, invoices, presentations, and more.
-- **Image Data Extraction**: Extract information or generate captions from images.
-- **Video Analysis**: Extract insights or transcribe content from video files.
-- **File Management**: List uploaded files or upload new files to VLM Run.
-
+- **Analyze Audio**: Analyze audio files for transcription, speaker identification, sentiment analysis, and more.
+- **Analyze Document**: Extract structured data from documents such as resumes, invoices, presentations, and more.
+- **Analyze Image**: Extract information or generate captions from images.
+- **Analyze Video**: Extract insights or transcribe content from video files.
+- **Manage Files**: List uploaded files or upload new files to VLM Run.
 
 ## 🔑 Credentials
 
@@ -45,23 +41,22 @@ This node supports the following operations:
 2. Get your API key from the dashboard
 3. Use the API key in the n8n VLM Run node credentials
 
-
 ## 📖 Usage
 
 1. **Configure Credentials**:
-
    - Add your VLM Run API credentials in n8n
    - Set the API base URL (default: https://api.vlm.run/v1)
 
 2. **Add VLM Run Node**:
-
    - Search for "VLM Run" in the n8n nodes panel
    - Add it to your workflow
 
 3. **Configure Node**:
-   - Select the operation (Document Extraction/Video Analysis)
-   - Provide the input file
-   - Configure any additional parameters
+   - Select the operation (Analyze Audio, Analyze Document, Analyze Image, Analyze Video, or Manage Files)
+   - Provide the required input fields (such as file data, model, or domain)
+   - Configure any additional parameters as needed
+
+4. **Run the workflow** to process your visual or audio data with VLM Run's AI models.
 
 ## 📸 Screenshots
 
@@ -80,15 +75,13 @@ _Example workflow using the VLM Run node_
 - [VLM Run API Reference](https://docs.vlm.run/api-reference/v1/health)
 - [Example Workflows](https://n8n.io/workflows)
 
-
 ## 🛠️ Example Use Cases
 
-- Extracting structured data from resumes, invoices, or utility bills.
-- Cataloging and captioning product images.
-- Transcribing and analyzing audio interviews or calls.
-- Extracting insights from video content.
-- Managing files in your VLM Run account from n8n workflows.
-
+- Extracting structured data from resumes, invoices, or utility bills
+- Cataloging and captioning product images
+- Transcribing and analyzing audio interviews or calls
+- Extracting insights from video content
+- Managing files in your VLM Run account from n8n workflows
 
 ## 📄 License
 

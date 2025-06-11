@@ -1,6 +1,6 @@
 {
 	"name": "@vlm-run/n8n-nodes-vlmrun",
-	"version": "2.1.0",
+	"version": "2.1.1",
 	"description": "VLM Run Nodes for n8n",
 	"keywords": [
 		"n8n-community-node-package"
@@ -52,7 +52,7 @@
 		"@typescript-eslint/parser": "^7.15.0",
 		"eslint": "^8.56.0",
 		"eslint-plugin-n8n-nodes-base": "^1.16.1",
-		"gulp": "^4.0.2",
+		"gulp": "^5.0.1",
 		"jest": "^29.7.0",
 		"n8n-workflow": "*",
 		"prettier": "^3.3.2",
