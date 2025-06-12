@@ -242,9 +242,11 @@ export class VlmRun implements INodeType {
 						break;
 					}
 
-					case 'image':
-						response = await processImageRequest(this, items[i]);
+					case 'image': {
+						const file = this.getNodeParameter('file', i) as string;
+						response = await processImageRequest(this, items[i], file);
 						break;
+					}
 
 					case 'file': {
 						const fileOperation = this.getNodeParameter('fileOperation', 0) as string;
