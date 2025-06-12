@@ -217,7 +217,8 @@ export class VlmRun implements INodeType {
 					case 'audio':
 					case 'video': {
 						const model = this.getNodeParameter('model', 0) as string;
-						const { buffer, fileName } = await processFile(this, items[i], i);
+						const file = this.getNodeParameter('file', i) as string;
+						const { buffer, fileName } = await processFile(this, items[i], i, file);
 						const domain = this.getNodeParameter('domain', 0) as string;
 						const batch = this.getNodeParameter('processAsynchronously', 0) as boolean;
 						const callbackUrl = batch ? this.getNodeParameter('callbackUrl', 0) as string : undefined;
@@ -241,16 +242,19 @@ export class VlmRun implements INodeType {
 						break;
 					}
 
-					case 'image':
-						response = await processImageRequest(this, items[i]);
+					case 'image': {
+						const file = this.getNodeParameter('file', i) as string;
+						response = await processImageRequest(this, items[i], file);
 						break;
+					}
 
 					case 'file': {
 						const fileOperation = this.getNodeParameter('fileOperation', 0) as string;
 						if (fileOperation === 'list') {
 							response = { files: await ApiService.getFiles(this) };
 						} else {
-							const { buffer, fileName } = await processFile(this, items[i], i);
+							const file = this.getNodeParameter('file', i) as string;
+							const { buffer, fileName } = await processFile(this, items[i], i, file);
 							response = await ApiService.uploadFile(this, buffer, fileName);
 							this.sendMessageToUI('File uploaded...');
 						}
