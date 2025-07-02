@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       vlmrun:
-        specifier: 0.2.21
-        version: 0.2.21
+        specifier: 0.3.0
+        version: 0.3.0
     devDependencies:
       '@jest/globals':
         specifier: ^29.7.0
@@ -2635,8 +2635,8 @@ packages:
     resolution: {integrity: sha512-0QwqXteBNXgnLCdWdvPQBX6FXRHtIH3VhJPTd5Lwn28tJXc34YqSCWUmkOvtJHBmB3gGoPtrOKk3Ts8/kEZ9aA==}
     engines: {node: '>=10.13.0'}
 
-  vlmrun@0.2.21:
-    resolution: {integrity: sha512-96+JjlE7GBLqqf3jZAtCNA/ufWTirGX8ImBuRp8Ohqp3J3ozkGGEpcModbLbtyfE6b56t3BXij5/q/aV3LBStQ==}
+  vlmrun@0.3.0:
+    resolution: {integrity: sha512-S0bahOOLz0PHKJlZOujU9fW4kBR2SINkpRDVk0miDB0EWjET1pNLkr4zauz+3Qfd+c5N2NrYvzmmMINeg3qoBg==}
 
   walker@1.0.8:
     resolution: {integrity: sha512-ts/8E8l5b7kY0vlWLewOkDXMmPdLcVV4GmOQLyxuSswIJsweeFZtAsMF7k1Nszz+TYBQrlYRmzOnr398y1JemQ==}
@@ -5895,7 +5895,7 @@ snapshots:
       replace-ext: 2.0.0
       teex: 1.0.1
 
-  vlmrun@0.2.21:
+  vlmrun@0.3.0:
     dependencies:
       axios: 1.8.4
       axios-retry: 4.5.0(axios@1.8.4)
