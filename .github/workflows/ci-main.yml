@@ -1,12 +1,12 @@
-name: CI Master
+name: CI Main
 
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
 
 jobs:
   build:
