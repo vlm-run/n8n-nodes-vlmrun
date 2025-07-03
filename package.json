@@ -1,6 +1,6 @@
 {
 	"name": "@vlm-run/n8n-nodes-vlmrun",
-	"version": "2.1.4",
+	"version": "2.1.5",
 	"description": "VLM Run Nodes for n8n",
 	"keywords": [
 		"n8n-community-node-package"
@@ -19,7 +19,6 @@
 		"node": ">=18.10",
 		"pnpm": ">=9.1"
 	},
-	"packageManager": "pnpm@9.1.4",
 	"main": "index.js",
 	"scripts": {
 		"preinstall": "npx only-allow pnpm",
@@ -64,7 +63,6 @@
 		"n8n-workflow": "*"
 	},
 	"dependencies": {
-  "form-data": "^4.0.0",
-  "vlmrun": "0.2.21"
- }
+		"vlmrun": "0.2.21"
+	}
 }
