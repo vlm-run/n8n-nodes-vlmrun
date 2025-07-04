@@ -13,7 +13,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/autonomi-ai/n8n-nodes-vlmrun.git"
+		"url": "https://github.com/vlm-run/n8n-nodes-vlmrun.git"
 	},
 	"engines": {
 		"node": ">=18.10",
