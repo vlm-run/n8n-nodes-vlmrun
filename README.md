@@ -85,4 +85,4 @@ _Example workflow using the VLM Run node_
 
 ## 📄 License
 
-[Apache-2.0](LICENSE)
+[MIT](LICENSE)
