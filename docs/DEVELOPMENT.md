@@ -20,7 +20,7 @@ These are the basic steps for working with the starter. For detailed guidance on
 
 1. Clone the repository:
    ```
-   git clone git@github.com:autonomi-ai/n8n-nodes-vlmrun.git
+   git clone git@github.com:vlm-run/n8n-nodes-vlmrun.git
    ```
 2. Run `pnpm i` to install dependencies.
 3. Open the project in your editor.
