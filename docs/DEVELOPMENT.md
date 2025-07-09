@@ -62,6 +62,7 @@ Delete tag
 ```sh
 git tag
 git tag -d <tag_name>
+git push origin --delete <tag-name>
 ```
 
 ## More information
