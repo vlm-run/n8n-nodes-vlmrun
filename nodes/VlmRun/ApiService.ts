@@ -9,7 +9,7 @@ import {
 	FileResponse,
 	ImageRequest,
 } from './types';
-import { VlmRun } from 'vlmrun';
+import { VlmRun } from '../../vendor/vlmrun';
 import {
 	FileService,
 	PredictionService,

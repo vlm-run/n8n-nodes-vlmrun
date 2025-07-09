@@ -1,0 +1,6 @@
+{
+  "name": "vlmrun-bundled",
+  "version": "0.3.0",
+  "main": "index.bundle.js",
+  "types": "index.d.ts"
+}

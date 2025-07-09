@@ -64,6 +64,5 @@
 		"n8n-workflow": "*"
 	},
 	"dependencies": {
-		"vlmrun": "0.2.21"
 	}
 }

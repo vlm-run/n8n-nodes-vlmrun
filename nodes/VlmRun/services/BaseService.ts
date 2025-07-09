@@ -2,7 +2,7 @@ import {
     IExecuteFunctions,
     NodeOperationError,
 } from 'n8n-workflow';
-import { VlmRun } from 'vlmrun';
+import { VlmRun } from '../../../vendor/vlmrun';
 
 export abstract class BaseService {
     protected client: VlmRun;
@@ -20,4 +20,4 @@ export abstract class BaseService {
             throw new Error(`${customMessage}: ${error.message}`);
         }
     }
-} 
+}    
