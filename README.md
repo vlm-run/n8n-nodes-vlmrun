@@ -21,6 +21,8 @@ VLM Run is a unified gateway for Visual AI that enables you to extract structure
 
 ## 💾 Installation
 
+**Requirements**: Node.js 20.0 or higher
+
 Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
 
 ```bash
@@ -82,6 +84,32 @@ _Example workflow using the VLM Run node_
 - Transcribing and analyzing audio interviews or calls
 - Extracting insights from video content
 - Managing files in your VLM Run account from n8n workflows
+
+## 🔧 Development
+
+This package uses a custom build process that bundles the VLM Run SDK directly into the final package, eliminating external dependencies. See [BUILD_PROCESS.md](BUILD_PROCESS.md) for detailed information about the build system.
+
+For development:
+```bash
+# Install dependencies
+pnpm install
+
+# Development build (faster, no bundling)
+pnpm build:dev
+
+# Production build (with SDK bundling)
+pnpm build
+
+# Clean build artifacts
+pnpm clean
+```
+
+### Configuration
+
+The build process is configured in `scripts/config.js` where you can:
+- Set the specific vlmrun SDK version to use
+- Modify build settings (target, format, minify, etc.)
+- Change file paths
 
 ## 📄 License
 

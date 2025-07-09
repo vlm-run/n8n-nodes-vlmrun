@@ -4,7 +4,7 @@ export class DomainService extends BaseService {
     async listDomains(): Promise<{ name: string; value: string }[]> {
         try {
             const domains = await this.client.domains.list();
-            return domains.map(domain => ({
+            return domains.map((domain: any) => ({
                 name: domain.domain,
                 value: domain.domain,
             }));
