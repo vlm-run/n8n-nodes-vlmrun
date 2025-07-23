@@ -83,12 +83,4 @@ export class ApiService {
 		const { predictionService } = await this.createServices(ef);
 		return predictionService.getPrediction(responseId);
 	}
-
-	static async getResponseWithRetry(
-		ef: IExecuteFunctions,
-		responseId: string,
-	): Promise<IDataObject> {
-		const { predictionService } = await this.createServices(ef);
-		return predictionService.getPredictionWithRetry(responseId);
-	}
 }

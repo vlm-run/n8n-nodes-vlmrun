@@ -1,7 +1,6 @@
 import { IDataObject } from 'n8n-workflow';
 import { BaseService } from './BaseService';
 import { FileRequest, ImageRequest, PredictionResponse } from '../types';
-import { MAX_ATTEMPTS, RETRY_DELAY } from '../config';
 
 export class PredictionService extends BaseService {
 	async generateDocument(request: FileRequest): Promise<PredictionResponse> {
@@ -69,20 +68,5 @@ export class PredictionService extends BaseService {
 		} catch (error) {
 			this.handleApiError(error, 'Failed to get prediction response');
 		}
-	}
-
-	async getPredictionWithRetry(responseId: string): Promise<IDataObject> {
-		let attempts = 0;
-		while (attempts < MAX_ATTEMPTS) {
-			const response = await this.getPrediction(responseId);
-
-			if (response.status === 'completed') {
-				return response;
-			}
-			attempts++;
-			await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
-		}
-
-		throw new Error('Response processing timed out');
 	}
 }
