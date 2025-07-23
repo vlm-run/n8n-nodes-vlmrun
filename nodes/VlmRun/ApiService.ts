@@ -1,25 +1,16 @@
-import {
-	IExecuteFunctions,
-	IDataObject,
-	ILoadOptionsFunctions,
-} from 'n8n-workflow';
-import {
-	FileRequest,
-	PredictionResponse,
-	FileResponse,
-	ImageRequest,
-} from './types';
-import { VlmRun } from 'vlmrun';
-import {
-	FileService,
-	PredictionService,
-	DomainService,
-} from './services';
+import { IExecuteFunctions, IDataObject, ILoadOptionsFunctions } from 'n8n-workflow';
+import { FileRequest, PredictionResponse, FileResponse, ImageRequest } from './types';
+import { VlmRunClient } from './VlmRunClient';
+import { FileService, PredictionService, DomainService } from './services';
 
 export class ApiService {
-	private static async initializeVlmRun(ef: IExecuteFunctions): Promise<VlmRun> {
-		const credentials = await ef.getCredentials('vlmRunApi') as { apiKey: string; apiBaseUrl: string };
-		return new VlmRun({
+	private static async initializeVlmRun(ef: IExecuteFunctions): Promise<VlmRunClient> {
+		const credentials = (await ef.getCredentials('vlmRunApi')) as {
+			apiKey: string;
+			apiBaseUrl: string;
+		};
+
+		return new VlmRunClient({
 			apiKey: credentials.apiKey.trim(),
 			baseURL: credentials.apiBaseUrl.trim(),
 		});
@@ -88,10 +79,7 @@ export class ApiService {
 		return predictionService.generateImage(request);
 	}
 
-	static async getResponse(
-		ef: IExecuteFunctions,
-		responseId: string,
-	): Promise<IDataObject> {
+	static async getResponse(ef: IExecuteFunctions, responseId: string): Promise<IDataObject> {
 		const { predictionService } = await this.createServices(ef);
 		return predictionService.getPrediction(responseId);
 	}

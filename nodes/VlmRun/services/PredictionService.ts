@@ -74,7 +74,6 @@ export class PredictionService extends BaseService {
 	async getPredictionWithRetry(responseId: string): Promise<IDataObject> {
 		let attempts = 0;
 		while (attempts < MAX_ATTEMPTS) {
-			console.log(`Getting response, attempt : ${attempts}`);
 			const response = await this.getPrediction(responseId);
 
 			if (response.status === 'completed') {
