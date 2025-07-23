@@ -48,6 +48,23 @@ n8n
 (search for VlmRun)
 ```
 
+## Publish
+
+To release a new version, create a new tag with the format `v<version>` and push it to the repository -
+
+```sh
+git tag v2.2.0
+git push origin v2.2.0
+```
+
+Delete tag
+
+```sh
+git tag
+git tag -d <tag_name>
+git push origin --delete <tag-name>
+```
+
 ## More information
 
 Refer to our [documentation on creating nodes](https://docs.n8n.io/integrations/creating-nodes/) for detailed information on building your own nodes.

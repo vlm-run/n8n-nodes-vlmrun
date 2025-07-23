@@ -2,8 +2,9 @@ name: Build and Publish
 
 on:
   push:
-    branches:
-      - release
+    tags:
+      - 'v*'
+  workflow_dispatch:
   release:
     types: [published]
 
@@ -33,6 +34,24 @@ jobs:
 
       - name: Dry-run publishing
         run: pnpm publish --dry-run
+
+      - name: Get version
+        id: get_version
+        run: |
+          VERSION=$(jq -r .version package.json)
+          echo "Version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Release v${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Authenticate npm
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
