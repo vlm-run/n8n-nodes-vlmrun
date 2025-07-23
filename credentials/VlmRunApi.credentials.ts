@@ -1,9 +1,14 @@
-import { IAuthenticateGeneric, ICredentialType, INodeProperties } from 'n8n-workflow';
+import {
+	IAuthenticateGeneric,
+	ICredentialTestRequest,
+	ICredentialType,
+	INodeProperties,
+} from 'n8n-workflow';
 
 export class VlmRunApi implements ICredentialType {
 	name = 'vlmRunApi';
 	displayName = 'VLM Run API';
-	documentationUrl = 'https://docs.vlm.run/api-reference/v1/health';
+	documentationUrl = 'https://app.vlm.run/';
 	properties: INodeProperties[] = [
 		{
 			displayName: 'API Key',
@@ -28,6 +33,14 @@ export class VlmRunApi implements ICredentialType {
 			headers: {
 				Authorization: '=Bearer {{$credentials.apiKey}}',
 			},
+		},
+	};
+
+	test: ICredentialTestRequest = {
+		request: {
+			baseURL: '={{$credentials.apiBaseUrl}}',
+			url: '/domains',
+			method: 'GET',
 		},
 	};
 }
