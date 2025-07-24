@@ -45,13 +45,15 @@ export class VlmRun implements INodeType {
 					{
 						name: 'Analyze Audio',
 						value: 'audio',
-						description: 'Analyze audio files for transcription, speaker identification, sentiment analysis, and more',
+						description:
+							'Analyze audio files for transcription, speaker identification, sentiment analysis, and more',
 						action: 'Analyze audio',
 					},
 					{
 						name: 'Analyze Document',
 						value: 'document',
-						description: 'Extract structured data from documents such as resumes, invoices, presentations, and more',
+						description:
+							'Extract structured data from documents such as resumes, invoices, presentations, and more',
 						action: 'Analyze document',
 					},
 					{
@@ -130,24 +132,6 @@ export class VlmRun implements INodeType {
 			},
 			// Common Properties
 			{
-				displayName: 'Model',
-				name: 'model',
-				type: 'options',
-				displayOptions: {
-					show: {
-						operation: ['document', 'image', 'audio', 'video'],
-					},
-				},
-				options: [
-					{
-						name: 'VLM-1',
-						value: 'vlm-1',
-					},
-				],
-				default: 'vlm-1',
-				description: 'Model to use for analysis',
-			},
-			{
 				displayName: 'Domain Name or ID',
 				name: 'domain',
 				type: 'options',
@@ -160,7 +144,8 @@ export class VlmRun implements INodeType {
 					},
 				},
 				default: '',
-				description: 'Domain to use for analysis. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				description:
+					'Domain to use for analysis. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
 				displayName: 'Process Asynchronously',
@@ -216,12 +201,14 @@ export class VlmRun implements INodeType {
 					case 'document':
 					case 'audio':
 					case 'video': {
-						const model = this.getNodeParameter('model', 0) as string;
+						const model = 'vlm-1'; // Use hardcoded model value
 						const file = this.getNodeParameter('file', i) as string;
 						const { buffer, fileName } = await processFile(this, items[i], i, file);
 						const domain = this.getNodeParameter('domain', 0) as string;
 						const batch = this.getNodeParameter('processAsynchronously', 0) as boolean;
-						const callbackUrl = batch ? this.getNodeParameter('callbackUrl', 0) as string : undefined;
+						const callbackUrl = batch
+							? (this.getNodeParameter('callbackUrl', 0) as string)
+							: undefined;
 
 						const fileResponse = await ApiService.uploadFile(this, buffer, fileName);
 						this.sendMessageToUI('File uploaded...');
@@ -234,11 +221,12 @@ export class VlmRun implements INodeType {
 							callbackUrl,
 						};
 
-						response = operation === 'document' 
-							? await ApiService.generateDocumentRequest(this, request)
-							: operation === 'audio'
-							? await ApiService.generateAudioRequest(this, request)
-							: await ApiService.generateVideoRequest(this, request);
+						response =
+							operation === 'document'
+								? await ApiService.generateDocumentRequest(this, request)
+								: operation === 'audio'
+									? await ApiService.generateAudioRequest(this, request)
+									: await ApiService.generateVideoRequest(this, request);
 						break;
 					}
 
@@ -288,4 +276,3 @@ export class VlmRun implements INodeType {
 		return [returnData];
 	}
 }
-
