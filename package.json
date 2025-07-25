@@ -1,6 +1,6 @@
 {
 	"name": "@vlm-run/n8n-nodes-vlmrun",
-	"version": "2.2.5",
+	"version": "2.2.6",
 	"description": "VLM Run Nodes for n8n",
 	"keywords": [
 		"n8n-community-node-package"
@@ -22,7 +22,6 @@
   "packageManager": "pnpm@9.1.4",
 	"main": "index.js",
 	"scripts": {
-		"preinstall": "npx only-allow pnpm",
 		"build": "tsc && gulp build:icons",
 		"dev": "tsc --watch",
 		"format": "prettier nodes credentials --write",
