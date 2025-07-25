@@ -1,5 +1,6 @@
+import { IExecuteFunctions, IHttpRequestOptions, IHttpRequestMethods } from 'n8n-workflow';
+
 export interface VlmRunConfig {
-	apiKey: string;
 	baseURL: string;
 }
 
@@ -44,11 +45,11 @@ export interface PredictionResponse {
 }
 
 export class VlmRunClient {
-	private apiKey: string;
+	private ef: IExecuteFunctions;
 	private baseURL: string;
 
-	constructor(config: VlmRunConfig) {
-		this.apiKey = config.apiKey;
+	constructor(ef: IExecuteFunctions, config: VlmRunConfig) {
+		this.ef = ef;
 		this.baseURL = config.baseURL.endsWith('/') ? config.baseURL.slice(0, -1) : config.baseURL;
 	}
 
@@ -59,44 +60,51 @@ export class VlmRunClient {
 		contentType?: string,
 	): Promise<any> {
 		const url = `${this.baseURL}${endpoint}`;
-		const headers: Record<string, string> = {
-			Authorization: `Bearer ${this.apiKey}`,
+
+		const options: IHttpRequestOptions = {
+			method: method as IHttpRequestMethods,
+			url,
+			headers: {},
 		};
 
 		if (contentType) {
-			headers['Content-Type'] = contentType;
+			options.headers!['Content-Type'] = contentType;
 		} else if (data && !(data instanceof FormData)) {
-			headers['Content-Type'] = 'application/json';
+			options.headers!['Content-Type'] = 'application/json';
 		}
-
-		const config: RequestInit = {
-			method,
-			headers,
-		};
 
 		if (data) {
 			if (data instanceof FormData) {
-				config.body = data;
+				// For FormData, n8n handles it automatically
+				options.body = data;
 			} else {
-				config.body = JSON.stringify(data);
+				options.body = JSON.stringify(data);
 			}
 		}
 
-		const response = await fetch(url, config);
-
-		if (!response.ok) {
-			const errorText = await response.text();
-			let errorDetail;
-			try {
-				const errorJson = JSON.parse(errorText);
-				errorDetail = errorJson.detail || errorJson.message || errorText;
-			} catch {
-				errorDetail = errorText;
+		try {
+			const response = await this.ef.helpers.httpRequestWithAuthentication.call(
+				this.ef,
+				'vlmRunApi',
+				options,
+			);
+			return response;
+		} catch (error: any) {
+			// Extract error details similar to the original implementation
+			let errorDetail = error.message;
+			if (error.response?.body) {
+				try {
+					const errorBody =
+						typeof error.response.body === 'string'
+							? JSON.parse(error.response.body)
+							: error.response.body;
+					errorDetail = errorBody.detail || errorBody.message || error.message;
+				} catch {
+					errorDetail = error.response.body || error.message;
+				}
 			}
-			throw new Error(`HTTP ${response.status}: ${errorDetail}`);
+			throw new Error(`HTTP ${error.response?.status || 'Error'}: ${errorDetail}`);
 		}
-
-		return response.json();
 	}
 
 	// Domains API
