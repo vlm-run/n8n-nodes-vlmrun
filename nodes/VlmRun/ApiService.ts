@@ -6,12 +6,10 @@ import { FileService, PredictionService, DomainService } from './services';
 export class ApiService {
 	private static async initializeVlmRun(ef: IExecuteFunctions): Promise<VlmRunClient> {
 		const credentials = (await ef.getCredentials('vlmRunApi')) as {
-			apiKey: string;
 			apiBaseUrl: string;
 		};
 
-		return new VlmRunClient({
-			apiKey: credentials.apiKey.trim(),
+		return new VlmRunClient(ef, {
 			baseURL: credentials.apiBaseUrl.trim(),
 		});
 	}
