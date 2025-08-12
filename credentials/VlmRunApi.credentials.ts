@@ -25,6 +25,12 @@ export class VlmRunApi implements ICredentialType {
 			type: 'string',
 			default: 'https://api.vlm.run/v1',
 		},
+		{
+			displayName: 'Agent Base Url',
+			name: 'agentBaseUrl',
+			type: 'string',
+			default: 'https://agent.vlm.run/v1',
+		},
 	];
 
 	authenticate: IAuthenticateGeneric = {

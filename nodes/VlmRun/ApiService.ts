@@ -7,10 +7,12 @@ export class ApiService {
 	private static async initializeVlmRun(ef: IExecuteFunctions): Promise<VlmRunClient> {
 		const credentials = (await ef.getCredentials('vlmRunApi')) as {
 			apiBaseUrl: string;
+			agentBaseUrl: string;
 		};
 
 		return new VlmRunClient(ef, {
 			baseURL: credentials.apiBaseUrl.trim(),
+			agentBaseURL: credentials.agentBaseUrl.trim(),
 		});
 	}
 
@@ -80,5 +82,32 @@ export class ApiService {
 	static async getResponse(ef: IExecuteFunctions, responseId: string): Promise<IDataObject> {
 		const { predictionService } = await this.createServices(ef);
 		return predictionService.getPrediction(responseId);
+	}
+
+	// Agent Operations
+	static async getAgents(ef: ILoadOptionsFunctions): Promise<{ name: string; value: string }[]> {
+		const client = await this.initializeVlmRun(ef as unknown as IExecuteFunctions);
+		const agents = await client.agent.get();
+
+		// Check if agents is an array, if not, handle single agent response
+		const agentList = Array.isArray(agents) ? agents : [agents];
+
+		return agentList.map((agent: any) => ({
+			name: agent.name,
+			value: agent.id || agent.name,
+		}));
+	}
+
+	static async executeAgent(
+		ef: IExecuteFunctions,
+		agentId: string,
+		prompt: string,
+	): Promise<IDataObject> {
+		const client = await this.initializeVlmRun(ef);
+		const request = {
+			agent_id: agentId,
+			prompt: prompt,
+		};
+		return client.agent.execute(request);
 	}
 }

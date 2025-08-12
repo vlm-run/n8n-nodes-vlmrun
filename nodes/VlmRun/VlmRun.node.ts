@@ -69,6 +69,12 @@ export class VlmRun implements INodeType {
 						action: 'Analyze video',
 					},
 					{
+						name: 'Execute Agent',
+						value: 'agent',
+						description: 'Execute an agent',
+						action: 'Execute agent',
+					},
+					{
 						name: 'Manage Files',
 						value: 'file',
 						description: 'List uploaded files or upload new files to VLM Run',
@@ -173,6 +179,40 @@ export class VlmRun implements INodeType {
 				required: true,
 				description: 'URL to call when processing is complete',
 			},
+			// Agent Properties
+			{
+				displayName: 'Agent',
+				name: 'agent',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'loadAgents',
+				},
+				displayOptions: {
+					show: {
+						operation: ['agent'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'Select the agent to execute',
+			},
+			{
+				displayName: 'Prompt',
+				name: 'prompt',
+				type: 'string',
+				typeOptions: {
+					alwaysOpenEditWindow: true,
+					rows: 4,
+				},
+				displayOptions: {
+					show: {
+						operation: ['agent'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'The prompt to send to the agent',
+			},
 		],
 	};
 
@@ -183,6 +223,13 @@ export class VlmRun implements INodeType {
 					return await ApiService.getDomains(this);
 				} catch (error) {
 					throw new NodeOperationError(this.getNode(), `Failed to load domains: ${error.message}`);
+				}
+			},
+			async loadAgents(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					return await ApiService.getAgents(this);
+				} catch (error) {
+					throw new NodeOperationError(this.getNode(), `Failed to load agents: ${error.message}`);
 				}
 			},
 		},
@@ -246,6 +293,13 @@ export class VlmRun implements INodeType {
 							response = await ApiService.uploadFile(this, buffer, fileName);
 							this.sendMessageToUI('File uploaded...');
 						}
+						break;
+					}
+
+					case 'agent': {
+						const agentId = this.getNodeParameter('agent', 0) as string;
+						const prompt = this.getNodeParameter('prompt', 0) as string;
+						response = await ApiService.executeAgent(this, agentId, prompt);
 						break;
 					}
 
