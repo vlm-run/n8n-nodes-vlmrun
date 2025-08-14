@@ -21,7 +21,7 @@ export class VlmRun implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Interact with VLM.run API',
+		description: 'Interact with VLM Run API',
 		defaults: {
 			name: 'VLM Run',
 		},
