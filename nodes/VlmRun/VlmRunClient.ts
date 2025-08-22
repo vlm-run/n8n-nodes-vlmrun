@@ -55,6 +55,37 @@ export interface AgentExecuteRequest {
 	[key: string]: any;
 }
 
+export interface AgentInfoResponse {
+	id: string;
+	name: string;
+	version: string;
+	description: string;
+	prompt: string;
+	json_schema?: any;
+	json_sample?: any;
+	created_at: string;
+	updated_at?: string;
+	status: string;
+}
+
+export interface AgentCreateRequest {
+	name: string;
+	config: {
+		prompt: string;
+		json_schema?: any;
+	};
+	callback_url?: string;
+}
+
+export interface AgentCreateResponse {
+	id: string;
+	name: string;
+	version: string;
+	status: string;
+	created_at: string;
+	updated_at: string;
+}
+
 export class VlmRunClient {
 	private ef: IExecuteFunctions;
 	private baseURL: string;
@@ -310,12 +341,20 @@ export class VlmRunClient {
 
 	// Agent API
 	public agent = {
-		get: async (): Promise<AgentResponse> => {
+		get: async (): Promise<AgentInfoResponse[]> => {
 			return this.makeAgentRequest('GET', '/agent');
 		},
 
 		execute: async (request: AgentExecuteRequest): Promise<AgentResponse> => {
 			return this.makeAgentRequest('POST', '/agent/execute', request);
+		},
+
+		create: async (request: AgentCreateRequest): Promise<AgentResponse> => {
+			return this.makeAgentRequest('POST', '/agent/create', request);
+		},
+
+		generatePresignedUrl: async (request: AgentExecuteRequest): Promise<AgentResponse> => {
+			return this.makeAgentRequest('POST', '/agent/presigned-url', request);
 		},
 	};
 }

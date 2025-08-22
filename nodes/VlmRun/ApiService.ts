@@ -1,6 +1,6 @@
 import { IExecuteFunctions, IDataObject, ILoadOptionsFunctions } from 'n8n-workflow';
 import { FileRequest, PredictionResponse, FileResponse, ImageRequest } from './types';
-import { VlmRunClient } from './VlmRunClient';
+import { AgentCreateRequest, AgentResponse, VlmRunClient } from './VlmRunClient';
 import { FileService, PredictionService, DomainService } from './services';
 
 export class ApiService {
@@ -101,13 +101,45 @@ export class ApiService {
 	static async executeAgent(
 		ef: IExecuteFunctions,
 		agentId: string,
-		prompt: string,
+		id: string,
 	): Promise<IDataObject> {
 		const client = await this.initializeVlmRun(ef);
 		const request = {
 			agent_id: agentId,
-			prompt: prompt,
+			inputs: {
+				file_id: id,
+			},
 		};
 		return client.agent.execute(request);
+	}
+	
+	static async createAgent(
+		ef: IExecuteFunctions,
+		name: string,
+		prompt: string,
+	): Promise<IDataObject> {
+		const client = await this.initializeVlmRun(ef);
+		
+		const request: AgentCreateRequest = {
+			name,
+			config: {
+				prompt,
+			},
+		};
+
+		return await client.agent.create(request);
+	}
+
+	static async generatePresignedUrl(ef: IExecuteFunctions, 
+		fileName: string,
+		purpose: string, 
+		expiration: number
+	): Promise<AgentResponse> {
+		const client = await this.initializeVlmRun(ef);
+		return await client.agent.generatePresignedUrl({
+			fileName,
+			purpose,
+			expiration,
+		});
 	}
 }

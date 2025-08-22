@@ -21,7 +21,7 @@ export class VlmRun implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Interact with VLM.run API',
+		description: 'Interact with VLM Run API',
 		defaults: {
 			name: 'VLM Run',
 		},
@@ -70,9 +70,15 @@ export class VlmRun implements INodeType {
 					},
 					{
 						name: 'Execute Agent',
-						value: 'agent',
+						value: 'executeAgent',
 						description: 'Execute an agent',
 						action: 'Execute agent',
+					},
+					{
+						name: 'Create Agent',
+						value: 'createAgent',
+						description: 'Create an agent',
+						action: 'Create agent',
 					},
 					{
 						name: 'Manage Files',
@@ -90,7 +96,7 @@ export class VlmRun implements INodeType {
 				type: 'string',
 				displayOptions: {
 					show: {
-						operation: ['document', 'image', 'audio', 'video'],
+						operation: ['document', 'image', 'audio', 'video', 'executeAgent'],
 					},
 				},
 				default: 'data',
@@ -179,7 +185,7 @@ export class VlmRun implements INodeType {
 				required: true,
 				description: 'URL to call when processing is complete',
 			},
-			// Agent Properties
+			// Execute Agent Properties
 			{
 				displayName: 'Agent',
 				name: 'agent',
@@ -189,7 +195,7 @@ export class VlmRun implements INodeType {
 				},
 				displayOptions: {
 					show: {
-						operation: ['agent'],
+						operation: ['executeAgent'],
 					},
 				},
 				default: '',
@@ -197,21 +203,54 @@ export class VlmRun implements INodeType {
 				description: 'Select the agent to execute',
 			},
 			{
-				displayName: 'Prompt',
-				name: 'prompt',
+				displayName: 'Agent Prompt',
+				name: 'agentPrompt',
 				type: 'string',
 				typeOptions: {
-					alwaysOpenEditWindow: true,
+					alwaysOpenEditWindow: false,
 					rows: 4,
 				},
 				displayOptions: {
 					show: {
-						operation: ['agent'],
+						operation: ['executeAgent'],
+					},
+					hide: {
+						agent: [''],
+					},
+				},
+				default: '',
+				description: 'The prompt associated with the selected agent',
+			},
+			// Create Agent Properties
+			{
+				displayName: 'Agent Name',
+				name: 'agentName',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['createAgent'],
 					},
 				},
 				default: '',
 				required: true,
-				description: 'The prompt to send to the agent',
+				description: 'Name of the agent to create',
+			},
+			{
+				displayName: 'Agent Prompt',
+				name: 'agentPrompt',
+				type: 'string',
+				typeOptions: {
+					alwaysOpenEditWindow: true,
+					rows: 6,
+				},
+				displayOptions: {
+					show: {
+						operation: ['createAgent'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'The prompt that will guide the agent behavior',
 			},
 		],
 	};
@@ -296,10 +335,21 @@ export class VlmRun implements INodeType {
 						break;
 					}
 
-					case 'agent': {
+					case 'executeAgent': {
+						const file = this.getNodeParameter('file', i) as string;
+						const { buffer, fileName } = await processFile(this, items[i], i, file);
+
+						const fileResponse = await ApiService.uploadFile(this, buffer, fileName);
+						
 						const agentId = this.getNodeParameter('agent', 0) as string;
-						const prompt = this.getNodeParameter('prompt', 0) as string;
-						response = await ApiService.executeAgent(this, agentId, prompt);
+						response = await ApiService.executeAgent(this, agentId, fileResponse.id);
+						break;
+					}
+
+					case 'createAgent': {
+						const agentName = this.getNodeParameter('agentName', 0) as string;
+						const agentPrompt = this.getNodeParameter('agentPrompt', 0) as string;
+						response = await ApiService.createAgent(this, agentName, agentPrompt);
 						break;
 					}
 
