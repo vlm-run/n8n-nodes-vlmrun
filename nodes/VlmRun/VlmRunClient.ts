@@ -69,7 +69,7 @@ export interface AgentInfoResponse {
 }
 
 export interface AgentCreateRequest {
-	name: string;
+	name?: string;
 	config: {
 		prompt: string;
 		json_schema?: any;
@@ -345,6 +345,10 @@ export class VlmRunClient {
 			return this.makeAgentRequest('GET', '/agent');
 		},
 
+		detail: async (id: string): Promise<AgentInfoResponse> => {
+			return this.makeAgentRequest('GET', `/agent/lookup`, { id });
+		},
+
 		execute: async (request: AgentExecuteRequest): Promise<AgentResponse> => {
 			return this.makeAgentRequest('POST', '/agent/execute', request);
 		},
@@ -354,7 +358,27 @@ export class VlmRunClient {
 		},
 
 		generatePresignedUrl: async (request: AgentExecuteRequest): Promise<AgentResponse> => {
-			return this.makeAgentRequest('POST', '/agent/presigned-url', request);
+			return this.makeAgentRequest('POST', '/files/presigned-url', request);
+		},
+
+		putImage: async (request: AgentExecuteRequest): Promise<void> => {
+			const blob = new Blob([request.buffer], {
+				type: request.buffer.mimeType || 'application/octet-stream',
+			});
+
+			const file = new File([blob], request.fileName, {
+				type: request.buffer.mimeType || 'application/octet-stream',
+			});
+
+			return this.ef.helpers.httpRequest.call(this.ef, {
+				method: 'PUT',
+				url: request.url,
+				body: file,
+			});
+		},
+
+		getPresignedUrl: async (request: AgentExecuteRequest): Promise<string> => {
+			return this.makeAgentRequest('GET', '/files/presigned-url', request);
 		},
 	};
 }

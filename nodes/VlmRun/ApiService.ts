@@ -1,6 +1,6 @@
 import { IExecuteFunctions, IDataObject, ILoadOptionsFunctions } from 'n8n-workflow';
 import { FileRequest, PredictionResponse, FileResponse, ImageRequest } from './types';
-import { AgentCreateRequest, AgentResponse, VlmRunClient } from './VlmRunClient';
+import { AgentCreateRequest, VlmRunClient } from './VlmRunClient';
 import { FileService, PredictionService, DomainService } from './services';
 
 export class ApiService {
@@ -101,45 +101,59 @@ export class ApiService {
 	static async executeAgent(
 		ef: IExecuteFunctions,
 		agentId: string,
-		id: string,
+		inputs: { url?: string },
 	): Promise<IDataObject> {
 		const client = await this.initializeVlmRun(ef);
 		const request = {
 			agent_id: agentId,
-			inputs: {
-				file_id: id,
-			},
+			inputs,
 		};
 		return client.agent.execute(request);
 	}
 	
 	static async createAgent(
-		ef: IExecuteFunctions,
-		name: string,
-		prompt: string,
-	): Promise<IDataObject> {
-		const client = await this.initializeVlmRun(ef);
+        ef: IExecuteFunctions,
+        prompt: string,
+    ): Promise<IDataObject> {
+        const client = await this.initializeVlmRun(ef);
+        const request: AgentCreateRequest = {
+            config: {
+                prompt,
+            },
+        };
 		
-		const request: AgentCreateRequest = {
-			name,
-			config: {
-				prompt,
-			},
-		};
+        return (await client.agent.create(request)) as unknown as IDataObject;
+    }
 
-		return await client.agent.create(request);
-	}
+    static async getAgentDetail(
+        ef: IExecuteFunctions,
+        agentId: string,
+    ): Promise<IDataObject> {
+        const client = await this.initializeVlmRun(ef);
 
-	static async generatePresignedUrl(ef: IExecuteFunctions, 
+        return (await client.agent.detail(agentId)) as unknown as IDataObject;
+    }
+
+	static async uploadUsingPresignedUrl(
+		ef: IExecuteFunctions,
 		fileName: string,
-		purpose: string, 
-		expiration: number
-	): Promise<AgentResponse> {
+		buffer: Buffer,
+		purpose = 'assistants', 
+		expiration = 86400
+	): Promise<{ url: string }> {
 		const client = await this.initializeVlmRun(ef);
-		return await client.agent.generatePresignedUrl({
-			fileName,
+		const response = await client.agent.generatePresignedUrl({
+			filename: fileName,
 			purpose,
 			expiration,
 		});
+
+		await client.agent.putImage({ url: response.url, buffer, fileName });
+
+		const url = await client.agent.getPresignedUrl({
+			file_id: response.file_id
+		});
+
+		return { url };
 	}
 }

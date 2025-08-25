@@ -75,12 +75,6 @@ export class VlmRun implements INodeType {
 						action: 'Execute agent',
 					},
 					{
-						name: 'Create Agent',
-						value: 'createAgent',
-						description: 'Create an agent',
-						action: 'Create agent',
-					},
-					{
 						name: 'Manage Files',
 						value: 'file',
 						description: 'List uploaded files or upload new files to VLM Run',
@@ -89,7 +83,7 @@ export class VlmRun implements INodeType {
 				],
 				default: 'document',
 			},
-			// File field for document, image, audio, and video operations
+			// File field for document, image, audio, video, and executeAgent operations
 			{
 				displayName: 'File',
 				name: 'file',
@@ -185,23 +179,6 @@ export class VlmRun implements INodeType {
 				required: true,
 				description: 'URL to call when processing is complete',
 			},
-			// Execute Agent Properties
-			{
-				displayName: 'Agent',
-				name: 'agent',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'loadAgents',
-				},
-				displayOptions: {
-					show: {
-						operation: ['executeAgent'],
-					},
-				},
-				default: '',
-				required: true,
-				description: 'Select the agent to execute',
-			},
 			{
 				displayName: 'Agent Prompt',
 				name: 'agentPrompt',
@@ -213,9 +190,6 @@ export class VlmRun implements INodeType {
 				displayOptions: {
 					show: {
 						operation: ['executeAgent'],
-					},
-					hide: {
-						agent: [''],
 					},
 				},
 				default: '',
@@ -262,13 +236,6 @@ export class VlmRun implements INodeType {
 					return await ApiService.getDomains(this);
 				} catch (error) {
 					throw new NodeOperationError(this.getNode(), `Failed to load domains: ${error.message}`);
-				}
-			},
-			async loadAgents(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				try {
-					return await ApiService.getAgents(this);
-				} catch (error) {
-					throw new NodeOperationError(this.getNode(), `Failed to load agents: ${error.message}`);
 				}
 			},
 		},
@@ -336,20 +303,46 @@ export class VlmRun implements INodeType {
 					}
 
 					case 'executeAgent': {
+						const agentPrompt = this.getNodeParameter('agentPrompt', 0) as string;
 						const file = this.getNodeParameter('file', i) as string;
 						const { buffer, fileName } = await processFile(this, items[i], i, file);
-
-						const fileResponse = await ApiService.uploadFile(this, buffer, fileName);
 						
-						const agentId = this.getNodeParameter('agent', 0) as string;
-						response = await ApiService.executeAgent(this, agentId, fileResponse.id);
-						break;
-					}
+						const uploadRes = (await ApiService.uploadUsingPresignedUrl(this, fileName, buffer)) as IDataObject;
+						const fileUrl = ((uploadRes as any).fileUrl || (uploadRes as any).url) as string;
 
-					case 'createAgent': {
-						const agentName = this.getNodeParameter('agentName', 0) as string;
-						const agentPrompt = this.getNodeParameter('agentPrompt', 0) as string;
-						response = await ApiService.createAgent(this, agentName, agentPrompt);
+						if (!fileUrl) {
+							throw new NodeOperationError(this.getNode(), 'Failed to obtain uploaded file URL');
+						}
+
+						this.sendMessageToUI('File uploaded. Creating agent...');
+						
+						const created = (await ApiService.createAgent(this, agentPrompt)) as IDataObject;
+						const agentId = (created as any).id;
+
+						if (!agentId) {
+							throw new NodeOperationError(this.getNode(), 'Agent creation did not return an id');
+						}
+
+						this.sendMessageToUI('Agent created. Waiting for completion...');
+						
+						let status = (created as any).status;
+						const maxAttempts = 6;
+						let attempts = 0;
+
+						while (status !== 'completed' && attempts < maxAttempts) {
+							await new Promise((resolve) => setTimeout(resolve, 10000));
+							const detail = (await ApiService.getAgentDetail(this, agentId)) as IDataObject;
+							status = (detail as any).status;
+							attempts++;
+						}
+
+						if (status !== 'completed') {
+							throw new NodeOperationError(this.getNode(), 'Agent creation not completed in time');
+						}
+
+						this.sendMessageToUI('Agent ready. Executing...');
+												
+						response = await ApiService.executeAgent(this, agentId, { url: fileUrl });
 						break;
 					}
 
