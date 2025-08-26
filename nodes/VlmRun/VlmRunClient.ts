@@ -362,23 +362,20 @@ export class VlmRunClient {
 		},
 
 		putImage: async (request: AgentExecuteRequest): Promise<void> => {
-			const blob = new Blob([request.buffer], {
-				type: request.buffer.mimeType || 'application/octet-stream',
-			});
-
-			const file = new File([blob], request.fileName, {
-				type: request.buffer.mimeType || 'application/octet-stream',
-			});
+			const buff: Buffer = request.buffer as unknown as Buffer;
+			const contentType: string =
+				(request.contentType as string) || (request.buffer?.mimeType as string) || 'application/octet-stream';
 
 			return this.ef.helpers.httpRequest.call(this.ef, {
 				method: 'PUT',
-				url: request.url,
-				body: file,
+				url: request.url as string,
+				body: buff,
+				headers: {
+					'Content-Type': contentType,
+					'Content-Length': String(buff.length),
+				},
+				encoding: null as unknown as undefined,
 			});
-		},
-
-		getPresignedUrl: async (request: AgentExecuteRequest): Promise<string> => {
-			return this.makeAgentRequest('GET', '/files/presigned-url', request);
 		},
 	};
 }

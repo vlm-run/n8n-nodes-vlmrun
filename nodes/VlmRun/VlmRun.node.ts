@@ -308,41 +308,13 @@ export class VlmRun implements INodeType {
 						const { buffer, fileName } = await processFile(this, items[i], i, file);
 						
 						const uploadRes = (await ApiService.uploadUsingPresignedUrl(this, fileName, buffer)) as IDataObject;
-						const fileUrl = ((uploadRes as any).fileUrl || (uploadRes as any).url) as string;
+						const fileUrl = uploadRes.url as string;
 
 						if (!fileUrl) {
 							throw new NodeOperationError(this.getNode(), 'Failed to obtain uploaded file URL');
 						}
-
-						this.sendMessageToUI('File uploaded. Creating agent...');
-						
-						const created = (await ApiService.createAgent(this, agentPrompt)) as IDataObject;
-						const agentId = (created as any).id;
-
-						if (!agentId) {
-							throw new NodeOperationError(this.getNode(), 'Agent creation did not return an id');
-						}
-
-						this.sendMessageToUI('Agent created. Waiting for completion...');
-						
-						let status = (created as any).status;
-						const maxAttempts = 6;
-						let attempts = 0;
-
-						while (status !== 'completed' && attempts < maxAttempts) {
-							await new Promise((resolve) => setTimeout(resolve, 10000));
-							const detail = (await ApiService.getAgentDetail(this, agentId)) as IDataObject;
-							status = (detail as any).status;
-							attempts++;
-						}
-
-						if (status !== 'completed') {
-							throw new NodeOperationError(this.getNode(), 'Agent creation not completed in time');
-						}
-
-						this.sendMessageToUI('Agent ready. Executing...');
 												
-						response = await ApiService.executeAgent(this, agentId, { url: fileUrl });
+						response = await ApiService.executeAgent(this, agentPrompt, { url: fileUrl });
 						break;
 					}
 

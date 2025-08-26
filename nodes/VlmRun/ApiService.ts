@@ -100,12 +100,14 @@ export class ApiService {
 
 	static async executeAgent(
 		ef: IExecuteFunctions,
-		agentId: string,
+		prompt: string,
 		inputs: { url?: string },
 	): Promise<IDataObject> {
 		const client = await this.initializeVlmRun(ef);
 		const request = {
-			agent_id: agentId,
+			config: {
+				prompt,
+			},
 			inputs,
 		};
 		return client.agent.execute(request);
@@ -148,12 +150,8 @@ export class ApiService {
 			expiration,
 		});
 
-		await client.agent.putImage({ url: response.url, buffer, fileName });
+		await client.agent.putImage({ url: response.url, buffer, fileName, contentType: response.content_type });
 
-		const url = await client.agent.getPresignedUrl({
-			file_id: response.file_id
-		});
-
-		return { url };
+		return { url: response.preview_url };
 	}
 }
