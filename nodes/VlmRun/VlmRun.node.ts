@@ -154,32 +154,6 @@ export class VlmRun implements INodeType {
 					'Domain to use for analysis. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
-				displayName: 'Process Asynchronously',
-				name: 'processAsynchronously',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						operation: ['document', 'audio', 'video'],
-					},
-				},
-				default: false,
-				description: 'Whether to process the request asynchronously',
-			},
-			{
-				displayName: 'Callback URL',
-				name: 'callbackUrl',
-				type: 'string',
-				displayOptions: {
-					show: {
-						operation: ['document', 'image', 'audio', 'video'],
-						processAsynchronously: [true],
-					},
-				},
-				default: '',
-				required: true,
-				description: 'URL to call when processing is complete',
-			},
-			{
 				displayName: 'Agent Prompt',
 				name: 'agentPrompt',
 				type: 'string',
@@ -195,36 +169,31 @@ export class VlmRun implements INodeType {
 				default: '',
 				description: 'The prompt associated with the selected agent',
 			},
-			// Create Agent Properties
 			{
-				displayName: 'Agent Name',
-				name: 'agentName',
-				type: 'string',
+				displayName: 'Process Asynchronously',
+				name: 'processAsynchronously',
+				type: 'boolean',
 				displayOptions: {
 					show: {
-						operation: ['createAgent'],
+						operation: ['document', 'audio', 'video', 'executeAgent'],
 					},
 				},
-				default: '',
-				required: true,
-				description: 'Name of the agent to create',
+				default: false,
+				description: 'Whether to process the request asynchronously',
 			},
 			{
-				displayName: 'Agent Prompt',
-				name: 'agentPrompt',
+				displayName: 'Callback URL',
+				name: 'callbackUrl',
 				type: 'string',
-				typeOptions: {
-					alwaysOpenEditWindow: true,
-					rows: 6,
-				},
 				displayOptions: {
 					show: {
-						operation: ['createAgent'],
+						operation: ['document', 'image', 'audio', 'video', 'executeAgent'],
+						processAsynchronously: [true],
 					},
 				},
 				default: '',
 				required: true,
-				description: 'The prompt that will guide the agent behavior',
+				description: 'URL to call when processing is complete',
 			},
 		],
 	};
@@ -304,6 +273,8 @@ export class VlmRun implements INodeType {
 
 					case 'executeAgent': {
 						const agentPrompt = this.getNodeParameter('agentPrompt', 0) as string;
+						const callbackUrl = this.getNodeParameter('callbackUrl', 0) as string;
+
 						const file = this.getNodeParameter('file', i) as string;
 						const { buffer, fileName } = await processFile(this, items[i], i, file);
 						
@@ -314,7 +285,7 @@ export class VlmRun implements INodeType {
 							throw new NodeOperationError(this.getNode(), 'Failed to obtain uploaded file URL');
 						}
 												
-						response = await ApiService.executeAgent(this, agentPrompt, { url: fileUrl });
+						response = await ApiService.executeAgent(this, agentPrompt, { url: fileUrl }, callbackUrl);
 						break;
 					}
 

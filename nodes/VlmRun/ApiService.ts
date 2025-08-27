@@ -102,6 +102,7 @@ export class ApiService {
 		ef: IExecuteFunctions,
 		prompt: string,
 		inputs: { url?: string },
+		callbackUrl?: string,
 	): Promise<IDataObject> {
 		const client = await this.initializeVlmRun(ef);
 		const request = {
@@ -109,6 +110,7 @@ export class ApiService {
 				prompt,
 			},
 			inputs,
+			callback_url: callbackUrl,
 		};
 		return client.agent.execute(request);
 	}
