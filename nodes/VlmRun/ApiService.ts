@@ -101,7 +101,7 @@ export class ApiService {
 	static async executeAgent(
 		ef: IExecuteFunctions,
 		prompt: string,
-		inputs: { url?: string },
+		inputs: { url?: string; urls?: Record<string, string> },
 		callbackUrl?: string,
 	): Promise<IDataObject> {
 		const client = await this.initializeVlmRun(ef);
@@ -153,6 +153,6 @@ export class ApiService {
 			contentType: response.content_type,
 		});
 
-		return { url: response.preview_url };
+		return { url: response.preview_url, ...response };
 	}
 }

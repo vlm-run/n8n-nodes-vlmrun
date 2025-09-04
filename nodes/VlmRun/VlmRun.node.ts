@@ -83,14 +83,14 @@ export class VlmRun implements INodeType {
 				],
 				default: 'document',
 			},
-			// File field for document, image, audio, video, and executeAgent operations
+			// File field for document, image, audio, video operations
 			{
 				displayName: 'File',
 				name: 'file',
 				type: 'string',
 				displayOptions: {
 					show: {
-						operation: ['document', 'image', 'audio', 'video', 'executeAgent'],
+						operation: ['document', 'image', 'audio', 'video'],
 					},
 				},
 				default: 'data',
@@ -137,6 +137,79 @@ export class VlmRun implements INodeType {
 				default: '',
 				description: 'The prompt associated with the selected agent',
 			},
+			// Multiple Files Toggle for Execute Agent
+			{
+				displayName: 'Multiple Files',
+				name: 'multipleFiles',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						operation: ['executeAgent'],
+					},
+				},
+				default: false,
+				description: 'Whether to upload multiple files with custom keys',
+			},
+			// Single File field for executeAgent when multipleFiles is false
+			{
+				displayName: 'File',
+				name: 'file',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['executeAgent'],
+						multipleFiles: [false],
+					},
+				},
+				default: 'data',
+				required: true,
+				description: 'File data from previous node',
+			},
+			// Key-Value Collection for Multiple Files
+			{
+				displayName: 'File Mappings',
+				name: 'fileMappings',
+				type: 'fixedCollection',
+				placeholder: 'Add More',
+				typeOptions: {
+					multipleValues: true,
+				},
+				displayOptions: {
+					show: {
+						operation: ['executeAgent'],
+						multipleFiles: [true],
+					},
+				},
+				default: {},
+				required: true,
+				description: 'Map custom keys to file URLs',
+				options: [
+					{
+						name: 'mapping',
+						displayName: 'File Mapping',
+						values: [
+							{
+								displayName: 'Key',
+								name: 'key',
+								type: 'string',
+								default: '',
+								placeholder: 'e.g., resume, cover_letter, portfolio',
+								required: true,
+								description: 'Custom identifier for this file',
+							},
+							{
+								displayName: 'URL',
+								name: 'url',
+								type: 'string',
+								default: '',
+								placeholder: 'https://example.com/file.pdf',
+								required: true,
+								description: 'File URL from previous upload node',
+							},
+						],
+					},
+				],
+			},
 			// File field for file upload operation
 			{
 				displayName: 'File',
@@ -169,7 +242,6 @@ export class VlmRun implements INodeType {
 				description:
 					'Domain to use for analysis. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
-
 			{
 				displayName: 'Process Asynchronously',
 				name: 'processAsynchronously',
@@ -266,7 +338,7 @@ export class VlmRun implements INodeType {
 						} else {
 							const file = this.getNodeParameter('file', i) as string;
 							const { buffer, fileName } = await processFile(this, items[i], i, file);
-							response = await ApiService.uploadFile(this, buffer, fileName);
+							response = await ApiService.uploadUsingPresignedUrl(this, fileName, buffer);
 							this.sendMessageToUI('File uploaded...');
 						}
 						break;
@@ -274,26 +346,68 @@ export class VlmRun implements INodeType {
 
 					case 'executeAgent': {
 						const agentPrompt = this.getNodeParameter('agentPrompt', 0) as string;
-						const callbackUrl = this.getNodeParameter('callbackUrl', 0) as string;
+						const batch = this.getNodeParameter('processAsynchronously', 0) as boolean;
+						const callbackUrl = batch
+							? (this.getNodeParameter('callbackUrl', 0) as string)
+							: undefined;
 
-						const file = this.getNodeParameter('file', i) as string;
-						const { buffer, fileName } = await processFile(this, items[i], i, file);
+						const multipleFiles = this.getNodeParameter('multipleFiles', 0) as boolean;
 
-						const uploadRes = (await ApiService.uploadUsingPresignedUrl(
-							this,
-							fileName,
-							buffer,
-						)) as IDataObject;
-						const fileUrl = uploadRes.url as string;
+						let filePayload: IDataObject;
 
-						if (!fileUrl) {
-							throw new NodeOperationError(this.getNode(), 'Failed to obtain uploaded file URL');
+						if (multipleFiles) {
+							// Handle multiple files with key-value mapping
+							const fileMappings = this.getNodeParameter('fileMappings', 0) as IDataObject;
+							const mappings = (fileMappings.mapping as IDataObject[]) || [];
+							
+							if (mappings.length === 0) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'At least one file mapping is required when multiple files is enabled',
+								);
+							}
+
+							const urls: IDataObject = {};
+							for (const mapping of mappings) {
+								const key = mapping.key as string;
+								const url = mapping.url as string;
+								
+								if (!key || !url) {
+									throw new NodeOperationError(
+										this.getNode(),
+										'Both key and URL are required for each file mapping',
+									);
+								}
+								
+								urls[key] = url;
+							}
+							
+							filePayload = { urls };
+							this.sendMessageToUI(`Multiple files mapped: ${Object.keys(urls).join(', ')}`);
+						} else {
+							// Handle single file (existing logic)
+							const file = this.getNodeParameter('file', i) as string;
+							const { buffer, fileName } = await processFile(this, items[i], i, file);
+
+							const uploadRes = (await ApiService.uploadUsingPresignedUrl(
+								this,
+								fileName,
+								buffer,
+							)) as IDataObject;
+							const fileUrl = uploadRes.url as string;
+
+							if (!fileUrl) {
+								throw new NodeOperationError(this.getNode(), 'Failed to obtain uploaded file URL');
+							}
+
+							filePayload = { url: fileUrl };
+							this.sendMessageToUI('Single file uploaded...');
 						}
 
 						response = await ApiService.executeAgent(
 							this,
 							agentPrompt,
-							{ url: fileUrl },
+							filePayload,
 							callbackUrl,
 						);
 						break;
