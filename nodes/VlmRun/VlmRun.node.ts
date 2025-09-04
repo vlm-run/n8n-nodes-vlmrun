@@ -193,7 +193,7 @@ export class VlmRun implements INodeType {
 								name: 'key',
 								type: 'string',
 								default: '',
-								placeholder: 'e.g., resume, cover_letter, portfolio',
+								placeholder: 'e.g., url, file_url, image_url',
 								required: true,
 								description: 'Custom identifier for this file',
 							},
@@ -248,7 +248,7 @@ export class VlmRun implements INodeType {
 				type: 'boolean',
 				displayOptions: {
 					show: {
-						operation: ['document', 'audio', 'video', 'executeAgent'],
+						operation: ['document', 'audio', 'video'],
 					},
 				},
 				default: false,
@@ -260,8 +260,21 @@ export class VlmRun implements INodeType {
 				type: 'string',
 				displayOptions: {
 					show: {
-						operation: ['document', 'image', 'audio', 'video', 'executeAgent'],
+						operation: ['document', 'image', 'audio', 'video'],
 						processAsynchronously: [true],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'URL to call when processing is complete',
+			},
+			{
+				displayName: 'Callback URL',
+				name: 'agentCallbackUrl',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['executeAgent'],
 					},
 				},
 				default: '',
@@ -346,10 +359,7 @@ export class VlmRun implements INodeType {
 
 					case 'executeAgent': {
 						const agentPrompt = this.getNodeParameter('agentPrompt', 0) as string;
-						const batch = this.getNodeParameter('processAsynchronously', 0) as boolean;
-						const callbackUrl = batch
-							? (this.getNodeParameter('callbackUrl', 0) as string)
-							: undefined;
+						const callbackUrl = this.getNodeParameter('agentCallbackUrl', 0) as string;
 
 						const multipleFiles = this.getNodeParameter('multipleFiles', 0) as boolean;
 
@@ -359,7 +369,7 @@ export class VlmRun implements INodeType {
 							// Handle multiple files with key-value mapping
 							const fileMappings = this.getNodeParameter('fileMappings', 0) as IDataObject;
 							const mappings = (fileMappings.mapping as IDataObject[]) || [];
-							
+
 							if (mappings.length === 0) {
 								throw new NodeOperationError(
 									this.getNode(),
@@ -371,17 +381,17 @@ export class VlmRun implements INodeType {
 							for (const mapping of mappings) {
 								const key = mapping.key as string;
 								const url = mapping.url as string;
-								
+
 								if (!key || !url) {
 									throw new NodeOperationError(
 										this.getNode(),
 										'Both key and URL are required for each file mapping',
 									);
 								}
-								
+
 								urls[key] = url;
 							}
-							
+
 							filePayload = { urls };
 							this.sendMessageToUI(`Multiple files mapped: ${Object.keys(urls).join(', ')}`);
 						} else {
@@ -394,7 +404,7 @@ export class VlmRun implements INodeType {
 								fileName,
 								buffer,
 							)) as IDataObject;
-							const fileUrl = uploadRes.url as string;
+							const fileUrl = uploadRes.preview_url as string;
 
 							if (!fileUrl) {
 								throw new NodeOperationError(this.getNode(), 'Failed to obtain uploaded file URL');
@@ -404,12 +414,7 @@ export class VlmRun implements INodeType {
 							this.sendMessageToUI('Single file uploaded...');
 						}
 
-						response = await ApiService.executeAgent(
-							this,
-							agentPrompt,
-							filePayload,
-							callbackUrl,
-						);
+						response = await ApiService.executeAgent(this, agentPrompt, filePayload, callbackUrl);
 						break;
 					}
 

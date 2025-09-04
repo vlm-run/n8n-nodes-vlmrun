@@ -1,6 +1,6 @@
 {
 	"name": "@vlm-run/n8n-nodes-vlmrun",
-	"version": "2.2.7",
+	"version": "2.2.8",
 	"description": "VLM Run Nodes for n8n",
 	"keywords": [
 		"n8n-community-node-package"
