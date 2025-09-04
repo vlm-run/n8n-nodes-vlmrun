@@ -2,6 +2,7 @@ import { IExecuteFunctions, IHttpRequestOptions, IHttpRequestMethods } from 'n8n
 
 export interface VlmRunConfig {
 	baseURL: string;
+	agentBaseURL: string;
 }
 
 export interface Domain {
@@ -44,13 +45,56 @@ export interface PredictionResponse {
 	status: string;
 }
 
+export interface AgentResponse {
+	// Define based on actual API response structure
+	[key: string]: any;
+}
+
+export interface AgentExecuteRequest {
+	// Define based on actual API request structure
+	[key: string]: any;
+}
+
+export interface AgentInfoResponse {
+	id: string;
+	name: string;
+	description: string;
+	prompt: string;
+	json_schema?: any;
+	json_sample?: any;
+	created_at: string;
+	updated_at?: string;
+	status: string;
+}
+
+export interface AgentCreateRequest {
+	name?: string;
+	config: {
+		prompt: string;
+		json_schema?: any;
+	};
+	callback_url?: string;
+}
+
+export interface AgentCreateResponse {
+	id: string;
+	name: string;
+	status: string;
+	created_at: string;
+	updated_at: string;
+}
+
 export class VlmRunClient {
 	private ef: IExecuteFunctions;
 	private baseURL: string;
+	private agentBaseURL: string;
 
 	constructor(ef: IExecuteFunctions, config: VlmRunConfig) {
 		this.ef = ef;
 		this.baseURL = config.baseURL.endsWith('/') ? config.baseURL.slice(0, -1) : config.baseURL;
+		this.agentBaseURL = config.agentBaseURL.endsWith('/')
+			? config.agentBaseURL.slice(0, -1)
+			: config.agentBaseURL;
 	}
 
 	private async makeRequest(
@@ -60,6 +104,61 @@ export class VlmRunClient {
 		contentType?: string,
 	): Promise<any> {
 		const url = `${this.baseURL}${endpoint}`;
+
+		const options: IHttpRequestOptions = {
+			method: method as IHttpRequestMethods,
+			url,
+			headers: {},
+		};
+
+		if (contentType) {
+			options.headers!['Content-Type'] = contentType;
+		} else if (data && !(data instanceof FormData)) {
+			options.headers!['Content-Type'] = 'application/json';
+		}
+
+		if (data) {
+			if (data instanceof FormData) {
+				// For FormData, n8n handles it automatically
+				options.body = data;
+			} else {
+				options.body = JSON.stringify(data);
+			}
+		}
+
+		try {
+			const response = await this.ef.helpers.httpRequestWithAuthentication.call(
+				this.ef,
+				'vlmRunApi',
+				options,
+			);
+			return response;
+		} catch (error: any) {
+			// Extract error details similar to the original implementation
+			let errorDetail = error.message;
+			if (error.response?.body) {
+				try {
+					const errorBody =
+						typeof error.response.body === 'string'
+							? JSON.parse(error.response.body)
+							: error.response.body;
+					errorDetail = errorBody.detail || errorBody.message || error.message;
+				} catch {
+					errorDetail = error.response.body || error.message;
+				}
+			}
+			throw new Error(`HTTP ${error.response?.status || 'Error'}: ${errorDetail}`);
+		}
+	}
+
+	private async makeAgentRequest(
+		method: string,
+		endpoint: string,
+		data?: any,
+		contentType?: string,
+	): Promise<any> {
+		const url = `${this.agentBaseURL}${endpoint}`;
+		console.log('url', url);
 
 		const options: IHttpRequestOptions = {
 			method: method as IHttpRequestMethods,
@@ -235,6 +334,48 @@ export class VlmRunClient {
 	public predictions = {
 		get: async (predictionId: string): Promise<PredictionResponse> => {
 			return this.makeRequest('GET', `/predictions/${predictionId}`);
+		},
+	};
+
+	// Agent API
+	public agent = {
+		get: async (): Promise<AgentInfoResponse[]> => {
+			return this.makeAgentRequest('GET', '/agent');
+		},
+
+		detail: async (id: string): Promise<AgentInfoResponse> => {
+			return this.makeAgentRequest('GET', `/agent/lookup`, { id });
+		},
+
+		execute: async (request: AgentExecuteRequest): Promise<AgentResponse> => {
+			return this.makeAgentRequest('POST', '/agent/execute', request);
+		},
+
+		create: async (request: AgentCreateRequest): Promise<AgentResponse> => {
+			return this.makeAgentRequest('POST', '/agent/create', request);
+		},
+
+		generatePresignedUrl: async (request: AgentExecuteRequest): Promise<AgentResponse> => {
+			return this.makeAgentRequest('POST', '/files/presigned-url', request);
+		},
+
+		uploadToPresignedUrl: async (request: AgentExecuteRequest): Promise<void> => {
+			const buff: Buffer = request.buffer as unknown as Buffer;
+			const contentType: string =
+				(request.contentType as string) ||
+				(request.buffer?.mimeType as string) ||
+				'application/octet-stream';
+
+			return this.ef.helpers.httpRequest.call(this.ef, {
+				method: 'PUT',
+				url: request.url as string,
+				body: buff,
+				headers: {
+					'Content-Type': contentType,
+					'Content-Length': String(buff.length),
+				},
+				encoding: null as unknown as undefined,
+			});
 		},
 	};
 }

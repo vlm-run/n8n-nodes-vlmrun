@@ -69,6 +69,12 @@ export class VlmRun implements INodeType {
 						action: 'Analyze video',
 					},
 					{
+						name: 'Execute Agent',
+						value: 'executeAgent',
+						description: 'Execute an agent',
+						action: 'Execute agent',
+					},
+					{
 						name: 'Manage Files',
 						value: 'file',
 						description: 'List uploaded files or upload new files to VLM Run',
@@ -77,7 +83,7 @@ export class VlmRun implements INodeType {
 				],
 				default: 'document',
 			},
-			// File field for document, image, audio, and video operations
+			// File field for document, image, audio, video operations
 			{
 				displayName: 'File',
 				name: 'file',
@@ -114,6 +120,95 @@ export class VlmRun implements INodeType {
 					},
 				],
 				default: 'list',
+			},
+			{
+				displayName: 'Prompt',
+				name: 'agentPrompt',
+				type: 'string',
+				typeOptions: {
+					alwaysOpenEditWindow: false,
+					rows: 4,
+				},
+				displayOptions: {
+					show: {
+						operation: ['executeAgent'],
+					},
+				},
+				default: '',
+				description: 'The prompt associated with the selected agent',
+			},
+			// Multiple Files Toggle for Execute Agent
+			{
+				displayName: 'Multiple Files',
+				name: 'multipleFiles',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						operation: ['executeAgent'],
+					},
+				},
+				default: false,
+				description: 'Whether to upload multiple files with custom keys',
+			},
+			// Single File field for executeAgent when multipleFiles is false
+			{
+				displayName: 'File',
+				name: 'file',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['executeAgent'],
+						multipleFiles: [false],
+					},
+				},
+				default: 'data',
+				required: true,
+				description: 'File data from previous node',
+			},
+			// Key-Value Collection for Multiple Files
+			{
+				displayName: 'File Mappings',
+				name: 'fileMappings',
+				type: 'fixedCollection',
+				placeholder: 'Add More',
+				typeOptions: {
+					multipleValues: true,
+				},
+				displayOptions: {
+					show: {
+						operation: ['executeAgent'],
+						multipleFiles: [true],
+					},
+				},
+				default: {},
+				required: true,
+				description: 'Map custom keys to file URLs',
+				options: [
+					{
+						name: 'mapping',
+						displayName: 'File Mapping',
+						values: [
+							{
+								displayName: 'Key',
+								name: 'key',
+								type: 'string',
+								default: '',
+								placeholder: 'e.g., url, file_url, image_url',
+								required: true,
+								description: 'Custom identifier for this file',
+							},
+							{
+								displayName: 'URL',
+								name: 'url',
+								type: 'string',
+								default: '',
+								placeholder: 'https://example.com/file.pdf',
+								required: true,
+								description: 'File URL from previous upload node',
+							},
+						],
+					},
+				],
 			},
 			// File field for file upload operation
 			{
@@ -167,6 +262,19 @@ export class VlmRun implements INodeType {
 					show: {
 						operation: ['document', 'image', 'audio', 'video'],
 						processAsynchronously: [true],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'URL to call when processing is complete',
+			},
+			{
+				displayName: 'Callback URL',
+				name: 'agentCallbackUrl',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['executeAgent'],
 					},
 				},
 				default: '',
@@ -243,9 +351,70 @@ export class VlmRun implements INodeType {
 						} else {
 							const file = this.getNodeParameter('file', i) as string;
 							const { buffer, fileName } = await processFile(this, items[i], i, file);
-							response = await ApiService.uploadFile(this, buffer, fileName);
+							response = await ApiService.uploadUsingPresignedUrl(this, fileName, buffer);
 							this.sendMessageToUI('File uploaded...');
 						}
+						break;
+					}
+
+					case 'executeAgent': {
+						const agentPrompt = this.getNodeParameter('agentPrompt', 0) as string;
+						const callbackUrl = this.getNodeParameter('agentCallbackUrl', 0) as string;
+
+						const multipleFiles = this.getNodeParameter('multipleFiles', 0) as boolean;
+
+						let filePayload: IDataObject;
+
+						if (multipleFiles) {
+							// Handle multiple files with key-value mapping
+							const fileMappings = this.getNodeParameter('fileMappings', 0) as IDataObject;
+							const mappings = (fileMappings.mapping as IDataObject[]) || [];
+
+							if (mappings.length === 0) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'At least one file mapping is required when multiple files is enabled',
+								);
+							}
+
+							const urls: IDataObject = {};
+							for (const mapping of mappings) {
+								const key = mapping.key as string;
+								const url = mapping.url as string;
+
+								if (!key || !url) {
+									throw new NodeOperationError(
+										this.getNode(),
+										'Both key and URL are required for each file mapping',
+									);
+								}
+
+								urls[key] = url;
+							}
+
+							filePayload = { urls };
+							this.sendMessageToUI(`Multiple files mapped: ${Object.keys(urls).join(', ')}`);
+						} else {
+							// Handle single file (existing logic)
+							const file = this.getNodeParameter('file', i) as string;
+							const { buffer, fileName } = await processFile(this, items[i], i, file);
+
+							const uploadRes = (await ApiService.uploadUsingPresignedUrl(
+								this,
+								fileName,
+								buffer,
+							)) as IDataObject;
+							const fileUrl = uploadRes.preview_url as string;
+
+							if (!fileUrl) {
+								throw new NodeOperationError(this.getNode(), 'Failed to obtain uploaded file URL');
+							}
+
+							filePayload = { url: fileUrl };
+							this.sendMessageToUI('Single file uploaded...');
+						}
+
+						response = await ApiService.executeAgent(this, agentPrompt, filePayload, callbackUrl);
 						break;
 					}
 
