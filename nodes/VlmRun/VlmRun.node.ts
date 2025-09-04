@@ -121,6 +121,22 @@ export class VlmRun implements INodeType {
 				],
 				default: 'list',
 			},
+			{
+				displayName: 'Prompt',
+				name: 'agentPrompt',
+				type: 'string',
+				typeOptions: {
+					alwaysOpenEditWindow: false,
+					rows: 4,
+				},
+				displayOptions: {
+					show: {
+						operation: ['executeAgent'],
+					},
+				},
+				default: '',
+				description: 'The prompt associated with the selected agent',
+			},
 			// File field for file upload operation
 			{
 				displayName: 'File',
@@ -153,22 +169,7 @@ export class VlmRun implements INodeType {
 				description:
 					'Domain to use for analysis. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
-			{
-				displayName: 'Agent Prompt',
-				name: 'agentPrompt',
-				type: 'string',
-				typeOptions: {
-					alwaysOpenEditWindow: false,
-					rows: 4,
-				},
-				displayOptions: {
-					show: {
-						operation: ['executeAgent'],
-					},
-				},
-				default: '',
-				description: 'The prompt associated with the selected agent',
-			},
+
 			{
 				displayName: 'Process Asynchronously',
 				name: 'processAsynchronously',
@@ -277,15 +278,24 @@ export class VlmRun implements INodeType {
 
 						const file = this.getNodeParameter('file', i) as string;
 						const { buffer, fileName } = await processFile(this, items[i], i, file);
-						
-						const uploadRes = (await ApiService.uploadUsingPresignedUrl(this, fileName, buffer)) as IDataObject;
+
+						const uploadRes = (await ApiService.uploadUsingPresignedUrl(
+							this,
+							fileName,
+							buffer,
+						)) as IDataObject;
 						const fileUrl = uploadRes.url as string;
 
 						if (!fileUrl) {
 							throw new NodeOperationError(this.getNode(), 'Failed to obtain uploaded file URL');
 						}
-												
-						response = await ApiService.executeAgent(this, agentPrompt, { url: fileUrl }, callbackUrl);
+
+						response = await ApiService.executeAgent(
+							this,
+							agentPrompt,
+							{ url: fileUrl },
+							callbackUrl,
+						);
 						break;
 					}
 

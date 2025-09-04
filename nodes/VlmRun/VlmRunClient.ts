@@ -58,7 +58,6 @@ export interface AgentExecuteRequest {
 export interface AgentInfoResponse {
 	id: string;
 	name: string;
-	version: string;
 	description: string;
 	prompt: string;
 	json_schema?: any;
@@ -80,7 +79,6 @@ export interface AgentCreateRequest {
 export interface AgentCreateResponse {
 	id: string;
 	name: string;
-	version: string;
 	status: string;
 	created_at: string;
 	updated_at: string;
@@ -361,10 +359,12 @@ export class VlmRunClient {
 			return this.makeAgentRequest('POST', '/files/presigned-url', request);
 		},
 
-		putImage: async (request: AgentExecuteRequest): Promise<void> => {
+		uploadToPresignedUrl: async (request: AgentExecuteRequest): Promise<void> => {
 			const buff: Buffer = request.buffer as unknown as Buffer;
 			const contentType: string =
-				(request.contentType as string) || (request.buffer?.mimeType as string) || 'application/octet-stream';
+				(request.contentType as string) ||
+				(request.buffer?.mimeType as string) ||
+				'application/octet-stream';
 
 			return this.ef.helpers.httpRequest.call(this.ef, {
 				method: 'PUT',

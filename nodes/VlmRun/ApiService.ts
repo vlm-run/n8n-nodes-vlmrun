@@ -114,36 +114,30 @@ export class ApiService {
 		};
 		return client.agent.execute(request);
 	}
-	
-	static async createAgent(
-        ef: IExecuteFunctions,
-        prompt: string,
-    ): Promise<IDataObject> {
-        const client = await this.initializeVlmRun(ef);
-        const request: AgentCreateRequest = {
-            config: {
-                prompt,
-            },
-        };
-		
-        return (await client.agent.create(request)) as unknown as IDataObject;
-    }
 
-    static async getAgentDetail(
-        ef: IExecuteFunctions,
-        agentId: string,
-    ): Promise<IDataObject> {
-        const client = await this.initializeVlmRun(ef);
+	static async createAgent(ef: IExecuteFunctions, prompt: string): Promise<IDataObject> {
+		const client = await this.initializeVlmRun(ef);
+		const request: AgentCreateRequest = {
+			config: {
+				prompt,
+			},
+		};
 
-        return (await client.agent.detail(agentId)) as unknown as IDataObject;
-    }
+		return (await client.agent.create(request)) as unknown as IDataObject;
+	}
+
+	static async getAgentDetail(ef: IExecuteFunctions, agentId: string): Promise<IDataObject> {
+		const client = await this.initializeVlmRun(ef);
+
+		return (await client.agent.detail(agentId)) as unknown as IDataObject;
+	}
 
 	static async uploadUsingPresignedUrl(
 		ef: IExecuteFunctions,
 		fileName: string,
 		buffer: Buffer,
-		purpose = 'assistants', 
-		expiration = 86400
+		purpose = 'assistants',
+		expiration = 86400,
 	): Promise<{ url: string }> {
 		const client = await this.initializeVlmRun(ef);
 		const response = await client.agent.generatePresignedUrl({
@@ -152,7 +146,12 @@ export class ApiService {
 			expiration,
 		});
 
-		await client.agent.putImage({ url: response.url, buffer, fileName, contentType: response.content_type });
+		await client.agent.uploadToPresignedUrl({
+			url: response.url,
+			buffer,
+			fileName,
+			contentType: response.content_type,
+		});
 
 		return { url: response.preview_url };
 	}
