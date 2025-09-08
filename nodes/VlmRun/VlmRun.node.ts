@@ -118,6 +118,11 @@ export class VlmRun implements INodeType {
 						value: 'upload',
 						description: 'Upload a new file',
 					},
+					{
+						name: 'Upload Multiple Files',
+						value: 'uploadMultiple',
+						description: 'Upload multiple files at once',
+					},
 				],
 				default: 'list',
 			},
@@ -225,6 +230,48 @@ export class VlmRun implements INodeType {
 				required: true,
 				description: 'File data from previous node',
 			},
+			// Multiple Files Collection for file upload operation
+			{
+				displayName: 'Files to Upload',
+				name: 'filesToUpload',
+				type: 'fixedCollection',
+				placeholder: 'Add File',
+				typeOptions: {
+					multipleValues: true,
+				},
+				displayOptions: {
+					show: {
+						operation: ['file'],
+						fileOperation: ['uploadMultiple'],
+					},
+				},
+				default: {},
+				required: true,
+				description: 'Multiple files to upload',
+				options: [
+					{
+						name: 'fileItem',
+						displayName: 'File',
+						values: [
+							{
+								displayName: 'Binary Field Name',
+								name: 'binaryFieldName',
+								type: 'string',
+								default: 'data',
+								required: true,
+								description: 'Name of the binary field containing the file data',
+							},
+							{
+								displayName: 'Custom Filename',
+								name: 'customFilename',
+								type: 'string',
+								default: '',
+								description: 'Optional: Override the filename for this file',
+							},
+						],
+					},
+				],
+			},
 			// Common Properties
 			{
 				displayName: 'Domain Name or ID',
@@ -303,7 +350,7 @@ export class VlmRun implements INodeType {
 
 		for (let i = 0; i < items.length; i++) {
 			try {
-				let response: IDataObject;
+				let response: IDataObject = {};
 
 				switch (operation) {
 					case 'document':
@@ -348,11 +395,60 @@ export class VlmRun implements INodeType {
 						const fileOperation = this.getNodeParameter('fileOperation', 0) as string;
 						if (fileOperation === 'list') {
 							response = { files: await ApiService.getFiles(this) };
-						} else {
+						} else if (fileOperation === 'upload') {
 							const file = this.getNodeParameter('file', i) as string;
 							const { buffer, fileName } = await processFile(this, items[i], i, file);
 							response = await ApiService.uploadUsingPresignedUrl(this, fileName, buffer);
 							this.sendMessageToUI('File uploaded...');
+						} else if (fileOperation === 'uploadMultiple') {
+							const filesToUpload = this.getNodeParameter('filesToUpload', 0) as IDataObject;
+							const fileItems = (filesToUpload.fileItem as IDataObject[]) || [];
+							
+							if (fileItems.length === 0) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'At least one file is required for multiple file upload',
+								);
+							}
+
+							const uploadResults: IDataObject[] = [];
+							let uploadCount = 0;
+
+							for (const fileItem of fileItems) {
+								const binaryFieldName = fileItem.binaryFieldName as string;
+								const customFilename = fileItem.customFilename as string;
+								
+								try {
+									const { buffer, fileName } = await processFile(this, items[i], i, binaryFieldName);
+									const finalFilename = customFilename || fileName;
+									
+									const uploadResult = await ApiService.uploadUsingPresignedUrl(this, finalFilename, buffer);
+
+									uploadResults.push({
+										originalField: binaryFieldName,
+										filename: finalFilename,
+										...uploadResult,
+									});
+
+									uploadCount++;
+									
+									this.sendMessageToUI(`Uploaded file ${uploadCount}/${fileItems.length}: ${finalFilename}`);
+								} catch (error) {
+									console.log(error)
+									throw new NodeOperationError(
+										this.getNode(),
+										`Failed to upload file from field "${binaryFieldName}": ${error.message}`,
+									);
+								}
+							}
+
+							response = {
+								success: true,
+								totalFiles: fileItems.length,
+								uploadedFiles: uploadCount,
+								files: uploadResults,
+							};
+							this.sendMessageToUI(`Successfully uploaded ${uploadCount} files`);
 						}
 						break;
 					}
