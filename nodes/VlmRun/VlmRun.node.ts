@@ -153,7 +153,7 @@ export class VlmRun implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Whether to upload multiple files with custom keys',
+				description: 'Whether to use multiple files from previous upload step (auto-detected)',
 			},
 			// Single File field for executeAgent when multipleFiles is false
 			{
@@ -170,50 +170,36 @@ export class VlmRun implements INodeType {
 				required: true,
 				description: 'File data from previous node',
 			},
-			// Key-Value Collection for Multiple Files
+			// Multiple Files Toggle for Execute Agent
 			{
-				displayName: 'File Mappings',
-				name: 'fileMappings',
-				type: 'fixedCollection',
-				placeholder: 'Add More',
+				displayName: 'Select From Previous Step',
+				name: 'selectFromPreviousStep',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						operation: ['executeAgent'],
+					},
+				},
+				default: false,
+				description: 'Whether to use multiple files from previous upload step (auto-detected)',
+			},
+			{
+				displayName: 'URLs',
+				name: 'urls',
+				type: 'string',
 				typeOptions: {
 					multipleValues: true,
 				},
 				displayOptions: {
 					show: {
 						operation: ['executeAgent'],
+						selectFromPreviousStep: [false],
 						multipleFiles: [true],
 					},
 				},
-				default: {},
+				default: [],
 				required: true,
-				description: 'Map custom keys to file URLs',
-				options: [
-					{
-						name: 'mapping',
-						displayName: 'File Mapping',
-						values: [
-							{
-								displayName: 'Key',
-								name: 'key',
-								type: 'string',
-								default: '',
-								placeholder: 'e.g., url, file_url, image_url',
-								required: true,
-								description: 'Custom identifier for this file',
-							},
-							{
-								displayName: 'URL',
-								name: 'url',
-								type: 'string',
-								default: '',
-								placeholder: 'https://example.com/file.pdf',
-								required: true,
-								description: 'File URL from previous upload node',
-							},
-						],
-					},
-				],
+				description: 'Enter one or more URLs',
 			},
 			// File field for file upload operation
 			{
@@ -411,7 +397,7 @@ export class VlmRun implements INodeType {
 								);
 							}
 
-							const uploadResults: IDataObject[] = [];
+							const uploadResults: string[] = [];
 							let uploadCount = 0;
 
 							for (const fileItem of fileItems) {
@@ -424,17 +410,13 @@ export class VlmRun implements INodeType {
 									
 									const uploadResult = await ApiService.uploadUsingPresignedUrl(this, finalFilename, buffer);
 
-									uploadResults.push({
-										originalField: binaryFieldName,
-										filename: finalFilename,
-										...uploadResult,
-									});
+									uploadResults.push(uploadResult.url);
 
 									uploadCount++;
 									
 									this.sendMessageToUI(`Uploaded file ${uploadCount}/${fileItems.length}: ${finalFilename}`);
 								} catch (error) {
-									console.log(error)
+									console.log(error);
 									throw new NodeOperationError(
 										this.getNode(),
 										`Failed to upload file from field "${binaryFieldName}": ${error.message}`,
@@ -456,60 +438,94 @@ export class VlmRun implements INodeType {
 					case 'executeAgent': {
 						const agentPrompt = this.getNodeParameter('agentPrompt', 0) as string;
 						const callbackUrl = this.getNodeParameter('agentCallbackUrl', 0) as string;
-
 						const multipleFiles = this.getNodeParameter('multipleFiles', 0) as boolean;
-
+					
 						let filePayload: IDataObject;
-
+					
 						if (multipleFiles) {
-							// Handle multiple files with key-value mapping
-							const fileMappings = this.getNodeParameter('fileMappings', 0) as IDataObject;
-							const mappings = (fileMappings.mapping as IDataObject[]) || [];
-
-							if (mappings.length === 0) {
-								throw new NodeOperationError(
-									this.getNode(),
-									'At least one file mapping is required when multiple files is enabled',
-								);
-							}
-
-							const urls: IDataObject = {};
-							for (const mapping of mappings) {
-								const key = mapping.key as string;
-								const url = mapping.url as string;
-
-								if (!key || !url) {
+							const selectFromPreviousStep = this.getNodeParameter('selectFromPreviousStep', 0) as boolean;
+							
+							if (selectFromPreviousStep) {
+								const inputData = items[i].json;
+								let urls: string[] = [];
+								
+								if (inputData.files && Array.isArray(inputData.files)) {
+									urls = inputData.files.filter((url: any) => typeof url === 'string' && url.trim() !== '');
+									this.sendMessageToUI(`Auto-detected ${urls.length} file URLs from upload step`);
+								} else if (inputData.preview_url && typeof inputData.preview_url === 'string') {
+									urls = [inputData.preview_url];
+									this.sendMessageToUI('Auto-detected 1 file URL from preview_url field');
+								} else if (inputData.url && typeof inputData.url === 'string') {
+									urls = [inputData.url];
+									this.sendMessageToUI('Auto-detected 1 file URL from url field');
+								} else {
+									const potentialUrls: string[] = [];
+									Object.entries(inputData).forEach(([key, value]) => {
+										if (typeof value === 'string' && 
+											key.toLowerCase().includes('url') &&
+											(value.startsWith('http://') || value.startsWith('https://'))) {
+											potentialUrls.push(value);
+										}
+									});
+									
+									if (potentialUrls.length > 0) {
+										urls = potentialUrls;
+										this.sendMessageToUI(`Auto-detected ${urls.length} file URLs from input fields`);
+									}
+								}
+								
+								if (urls.length === 0) {
 									throw new NodeOperationError(
 										this.getNode(),
-										'Both key and URL are required for each file mapping',
+										'No file URLs could be auto-detected from the previous step. Please ensure the previous node outputs file URLs or disable "Select From Previous Step".'
 									);
 								}
-
-								urls[key] = url;
+								
+								filePayload = { inputs: urls };
+								this.sendMessageToUI(`Using ${urls.length} auto-detected file URLs for agent execution`);
+								
+							} else {
+								const manualUrls = this.getNodeParameter('urls', 0) as string[];
+								
+								if (!manualUrls || manualUrls.length === 0) {
+									throw new NodeOperationError(
+										this.getNode(),
+										'At least one URL is required when using manual URL input.'
+									);
+								}
+								
+								const validUrls = manualUrls.filter(url => url && url.trim() !== '');
+								
+								if (validUrls.length === 0) {
+									throw new NodeOperationError(
+										this.getNode(),
+										'At least one valid URL is required.'
+									);
+								}
+								
+								filePayload = { inputs: validUrls };
+								this.sendMessageToUI(`Using ${validUrls.length} manually entered URLs for agent execution`);
 							}
-
-							filePayload = { urls };
-							this.sendMessageToUI(`Multiple files mapped: ${Object.keys(urls).join(', ')}`);
+							
 						} else {
-							// Handle single file (existing logic)
 							const file = this.getNodeParameter('file', i) as string;
 							const { buffer, fileName } = await processFile(this, items[i], i, file);
-
+					
 							const uploadRes = (await ApiService.uploadUsingPresignedUrl(
 								this,
 								fileName,
 								buffer,
 							)) as IDataObject;
 							const fileUrl = uploadRes.preview_url as string;
-
+					
 							if (!fileUrl) {
 								throw new NodeOperationError(this.getNode(), 'Failed to obtain uploaded file URL');
 							}
-
-							filePayload = { url: fileUrl };
-							this.sendMessageToUI('Single file uploaded...');
+					
+							filePayload = { inputs: [fileUrl] };
+							this.sendMessageToUI('Single file uploaded and added to inputs...');
 						}
-
+					
 						response = await ApiService.executeAgent(this, agentPrompt, filePayload, callbackUrl);
 						break;
 					}
