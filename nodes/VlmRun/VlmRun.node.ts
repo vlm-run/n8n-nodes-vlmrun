@@ -11,7 +11,7 @@ import {
 } from 'n8n-workflow';
 import { FileRequest } from './types';
 import { ApiService } from './ApiService';
-import { processFile, processImageRequest } from './utils';
+import { processFile, processImageRequest, validateUrl } from './utils';
 
 export class VlmRun implements INodeType {
 	description: INodeTypeDescription = {
@@ -318,6 +318,10 @@ export class VlmRun implements INodeType {
 							? (this.getNodeParameter('callbackUrl', 0) as string)
 							: undefined;
 
+						if (callbackUrl) {
+							validateUrl(callbackUrl, 'Callback URL');
+						}
+
 						const fileResponse = await ApiService.uploadFile(this, buffer, fileName);
 						this.sendMessageToUI('File uploaded...');
 
@@ -361,6 +365,8 @@ export class VlmRun implements INodeType {
 						const agentPrompt = this.getNodeParameter('agentPrompt', 0) as string;
 						const callbackUrl = this.getNodeParameter('agentCallbackUrl', 0) as string;
 
+						validateUrl(callbackUrl, 'Agent callback URL');
+
 						const multipleFiles = this.getNodeParameter('multipleFiles', 0) as boolean;
 
 						let filePayload: IDataObject;
@@ -388,6 +394,8 @@ export class VlmRun implements INodeType {
 										'Both key and URL are required for each file mapping',
 									);
 								}
+
+								validateUrl(url, `File mapping URL for key "${key}"`);
 
 								urls[key] = url;
 							}
