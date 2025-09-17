@@ -404,7 +404,7 @@ export class VlmRun implements INodeType {
 								fileName,
 								buffer,
 							)) as IDataObject;
-							const fileUrl = uploadRes.preview_url as string;
+							const fileUrl = uploadRes.public_url as string;
 
 							if (!fileUrl) {
 								throw new NodeOperationError(this.getNode(), 'Failed to obtain uploaded file URL');

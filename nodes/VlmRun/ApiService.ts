@@ -153,6 +153,6 @@ export class ApiService {
 			contentType: response.content_type,
 		});
 
-		return { url: response.preview_url, ...response };
+		return { url: response.public_url, ...response };
 	}
 }
