@@ -44,6 +44,9 @@
 			"dist/nodes/VlmRun/VlmRun.node.js"
 		]
 	},
+	"dependencies": {
+		"form-data": "4.0.4"
+	},
 	"devDependencies": {
 		"@jest/globals": "^29.7.0",
 		"@types/jest": "^29.5.14",
