@@ -33,3 +33,32 @@ export interface FileResponse extends IDataObject {
 	created_at: string;
 	object?: string;
 }
+
+export interface ChatMessage {
+	role: string;
+	content: string | Array<{
+		type: 'text' | 'image_url' | 'video_url' | 'file_url';
+		text?: string;
+		image_url?: {
+			url: string;
+		};
+		video_url?: {
+			url: string;
+		};
+		file_url?: {
+			url: string;
+		};
+	}>;
+}
+
+export interface ResponseFormat {
+	type: 'json_schema' | string;
+	schema?: IDataObject;
+}
+
+export interface ChatCompletionRequest {
+	messages: ChatMessage[];
+	model: string;
+	max_tokens?: number;
+	response_format?: ResponseFormat;
+}

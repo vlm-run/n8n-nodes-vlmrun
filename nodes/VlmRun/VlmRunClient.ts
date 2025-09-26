@@ -1,4 +1,6 @@
 import { IExecuteFunctions, IHttpRequestOptions, IHttpRequestMethods } from 'n8n-workflow';
+import { ChatCompletionRequest } from './types';
+import packageJson from '../../package.json';
 
 export interface VlmRunConfig {
 	baseURL: string;
@@ -108,7 +110,9 @@ export class VlmRunClient {
 		const options: IHttpRequestOptions = {
 			method: method as IHttpRequestMethods,
 			url,
-			headers: {},
+			headers: {
+				'X-Client-Id': `n8n-vlmrun-${packageJson.version}`,
+			},
 		};
 
 		if (contentType) {
@@ -147,6 +151,15 @@ export class VlmRunClient {
 					errorDetail = error.response.body || error.message;
 				}
 			}
+			// Log full error details for debugging
+			console.error('VlmRun API Error:', {
+				url,
+				method,
+				status: error.response?.status,
+				statusText: error.response?.statusText,
+				body: error.response?.body,
+				errorDetail,
+			});
 			throw new Error(`HTTP ${error.response?.status || 'Error'}: ${errorDetail}`);
 		}
 	}
@@ -163,7 +176,9 @@ export class VlmRunClient {
 		const options: IHttpRequestOptions = {
 			method: method as IHttpRequestMethods,
 			url,
-			headers: {},
+			headers: {
+				'X-Client-Id': `n8n-vlmrun-${packageJson.version}`,
+			},
 		};
 
 		if (contentType) {
@@ -220,7 +235,7 @@ export class VlmRunClient {
 
 			if (request.file instanceof Buffer) {
 				// Convert Buffer to File-like object
-				const blob = new Blob([request.file]);
+				const blob = new Blob([new Uint8Array(request.file)]);
 				formData.append('file', blob, 'uploaded-file');
 			} else {
 				// request.file is a File object
@@ -334,6 +349,14 @@ export class VlmRunClient {
 	public predictions = {
 		get: async (predictionId: string): Promise<PredictionResponse> => {
 			return this.makeRequest('GET', `/predictions/${predictionId}`);
+		},
+	};
+
+	// Chat Completion API
+	public chat = {
+		completions: async (request: ChatCompletionRequest): Promise<any> => {
+			const endpoint = '/openai/chat/completions';
+			return this.makeAgentRequest('POST', endpoint, request);
 		},
 	};
 
