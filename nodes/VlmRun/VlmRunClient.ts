@@ -147,6 +147,15 @@ export class VlmRunClient {
 					errorDetail = error.response.body || error.message;
 				}
 			}
+			// Log full error details for debugging
+			console.error('VlmRun API Error:', {
+				url,
+				method,
+				status: error.response?.status,
+				statusText: error.response?.statusText,
+				body: error.response?.body,
+				errorDetail,
+			});
 			throw new Error(`HTTP ${error.response?.status || 'Error'}: ${errorDetail}`);
 		}
 	}
@@ -220,7 +229,7 @@ export class VlmRunClient {
 
 			if (request.file instanceof Buffer) {
 				// Convert Buffer to File-like object
-				const blob = new Blob([request.file]);
+				const blob = new Blob([new Uint8Array(request.file)]);
 				formData.append('file', blob, 'uploaded-file');
 			} else {
 				// request.file is a File object
@@ -334,6 +343,39 @@ export class VlmRunClient {
 	public predictions = {
 		get: async (predictionId: string): Promise<PredictionResponse> => {
 			return this.makeRequest('GET', `/predictions/${predictionId}`);
+		},
+	};
+
+	// Chat Completion API
+	public chat = {
+		completions: async (request: {
+			messages: Array<{ role: string; content: string }>;
+			model: string;
+			max_tokens?: number;
+			response_format?: {
+				type: string;
+				schema?: any;
+			};
+		}): Promise<any> => {
+			// The agentBaseURL might already include /v1 (e.g., https://dev-agent.vlm.run/v1)
+			// So we need to check and construct the endpoint accordingly
+			// Target URL: https://dev-agent.vlm.run/v1/openai/chat/completions
+			let endpoint: string;
+			// if (this.agentBaseURL.endsWith('/v1')) {
+				// If baseURL already has /v1, just add /openai/chat/completions
+				endpoint = '/openai/chat/completions';
+			// } else {
+				// If baseURL doesn't have /v1, add /v1/openai/chat/completions
+				// endpoint = '/v1/openai/chat/completions';
+			// }
+			const url = `${this.agentBaseURL}${endpoint}`;
+			console.log('Chat Completion Request URL:', url);
+			console.log('Chat Completion Request Body:', JSON.stringify(request, null, 2));
+			console.log('Agent Base URL:', this.agentBaseURL);
+			console.log('Endpoint:', endpoint);
+			
+			// Use makeAgentRequest instead of makeRequest since we're using agentBaseURL
+			return this.makeAgentRequest('POST', endpoint, request);
 		},
 	};
 

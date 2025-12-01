@@ -155,4 +155,26 @@ export class ApiService {
 
 		return { url: response.public_url, ...response };
 	}
+
+	// Chat Completion Operations
+	static async chatCompletion(
+		ef: IExecuteFunctions,
+		messages: Array<{ role: string; content: string }>,
+		model: string,
+		max_tokens?: number,
+		response_format?: {
+			type: string;
+			schema?: any;
+		},
+	): Promise<IDataObject> {
+		const client = await this.initializeVlmRun(ef);
+		const request: any = { messages, model };
+		if (max_tokens !== undefined) {
+			request.max_tokens = max_tokens;
+		}
+		if (response_format !== undefined) {
+			request.response_format = response_format;
+		}
+		return client.chat.completions(request);
+	}
 }
