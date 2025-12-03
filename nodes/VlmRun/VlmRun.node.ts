@@ -9,7 +9,7 @@ import {
 	INodePropertyOptions,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { FileRequest } from './types';
+import { FileRequest, ChatMessage } from './types';
 import { ApiService } from './ApiService';
 import { processFile, processImageRequest } from './utils';
 
@@ -74,15 +74,21 @@ export class VlmRun implements INodeType {
 						description: 'Execute an agent',
 						action: 'Execute agent',
 					},
-					{
-						name: 'Manage Files',
-						value: 'file',
-						description: 'List uploaded files or upload new files to VLM Run',
-						action: 'Manage files',
-					},
-				],
-				default: 'document',
-			},
+				{
+					name: 'Manage Files',
+					value: 'file',
+					description: 'List uploaded files or upload new files to VLM Run',
+					action: 'Manage files',
+				},
+				{
+					name: 'Chat Completion',
+					value: 'chatCompletion',
+					description: 'Generate chat completions using OpenAI-compatible API',
+					action: 'Chat completion',
+				},
+			],
+			default: 'document',
+		},
 			// File field for document, image, audio, video operations
 			{
 				displayName: 'File',
@@ -281,6 +287,155 @@ export class VlmRun implements INodeType {
 				required: true,
 				description: 'URL to call when processing is complete',
 			},
+			// Chat Completion Properties
+			{
+				displayName: 'Model',
+				name: 'model',
+				type: 'options',
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+					},
+				},
+				options: [
+					{
+						name: 'vlmrun-orion-1:auto',
+						value: 'vlmrun-orion-1:auto',
+					},
+				],
+				default: 'vlmrun-orion-1:auto',
+				required: true,
+				description: 'Model to use for chat completion',
+			},
+			{
+				displayName: 'Prompt',
+				name: 'prompt',
+				type: 'fixedCollection',
+				typeOptions: {
+					sortable: true,
+					multipleValues: true,
+				},
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+					},
+				},
+				placeholder: 'Add Message',
+				default: {},
+				options: [
+					{
+						displayName: 'Messages',
+						name: 'messages',
+						values: [
+							{
+								displayName: 'Role',
+								name: 'role',
+								type: 'options',
+								options: [
+									{
+										name: 'Assistant',
+										value: 'assistant',
+									},
+									{
+										name: 'System',
+										value: 'system',
+									},
+									{
+										name: 'User',
+										value: 'user',
+									},
+								],
+								default: 'user',
+							},
+							{
+								displayName: 'Content',
+								name: 'content',
+								type: 'string',
+								default: '',
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Input Type',
+				name: 'inputType',
+				type: 'options',
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+					},
+				},
+				options: [
+					{
+						name: 'Image URL(s)',
+						value: 'url',
+					},
+				],
+				default: 'url',
+				description: 'Type of image input',
+			},
+			{
+				displayName: 'URL(s)',
+				name: 'imageUrls',
+				type: 'fixedCollection',
+				placeholder: 'Add URL',
+				typeOptions: {
+					multipleValues: true,
+				},
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+					},
+				},
+				default: {},
+				description: 'Image URL(s) to include in the chat completion',
+				options: [
+					{
+						displayName: 'URL',
+						name: 'url',
+						values: [
+							{
+								displayName: 'URL',
+								name: 'url',
+								type: 'string',
+								default: '',
+								placeholder: 'https://example.com/image.jpg',
+								required: true,
+								description: 'Image URL',
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Max Tokens',
+				name: 'maxTokens',
+				type: 'number',
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+					},
+				},
+				default: 32768,
+				typeOptions: {
+					maxValue: 32768,
+				},
+				description: 'The maximum number of tokens to generate in the completion',
+			},
+			{
+				displayName: 'Response Format',
+				name: 'responseFormat',
+				type: 'json',
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+					},
+				},
+				default: '',
+				description:
+					'Specify the format of the response. Use JSON schema format: {"type": "json_schema", "schema": {...}}',
+			},
 		],
 	};
 
@@ -309,7 +464,7 @@ export class VlmRun implements INodeType {
 					case 'document':
 					case 'audio':
 					case 'video': {
-						const model = 'vlm-1'; // Use hardcoded model value
+						const model = 'vlmrun-orion-1:auto'; // Use hardcoded model value
 						const file = this.getNodeParameter('file', i) as string;
 						const { buffer, fileName } = await processFile(this, items[i], i, file);
 						const domain = this.getNodeParameter('domain', 0) as string;
@@ -415,6 +570,127 @@ export class VlmRun implements INodeType {
 						}
 
 						response = await ApiService.executeAgent(this, agentPrompt, filePayload, callbackUrl);
+						break;
+					}
+
+					case 'chatCompletion': {
+						const promptParam = this.getNodeParameter('prompt', i) as IDataObject;
+						const model = this.getNodeParameter('model', i) as string;
+						const maxTokens = this.getNodeParameter('maxTokens', i) as number | undefined;
+						const responseFormatParam = this.getNodeParameter('responseFormat', i) as string | undefined;
+
+						// Extract messages from fixedCollection
+						const messagesData = (promptParam.messages as IDataObject[]) || [];
+
+						// Process image URLs
+						const imageUrls: string[] = [];
+						const imageUrlsParam = this.getNodeParameter('imageUrls', i) as IDataObject;
+						if (imageUrlsParam && imageUrlsParam.url) {
+							const urlEntries = Array.isArray(imageUrlsParam.url) ? imageUrlsParam.url : [imageUrlsParam.url];
+							for (const entry of urlEntries) {
+								if (entry && typeof entry === 'object' && entry.url) {
+									const url = entry.url as string;
+									if (url && url.trim()) {
+										imageUrls.push(url.trim());
+									}
+								}
+							}
+						}
+
+						// Build messages with support for images
+						const messages: ChatMessage[] = messagesData.map((msg: IDataObject, index: number) => {
+							const role = msg.role as string;
+							const content = msg.content as string;
+							
+							if (imageUrls.length > 0 && 
+								role === 'user' && 
+								index === messagesData.length - 1) {
+								// Create content array with text and images
+								const contentParts: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [];
+								
+								if (content && content.trim()) {
+									contentParts.push({
+										type: 'text',
+										text: content,
+									});
+								}
+								
+								// Add all images
+								for (const imageUrl of imageUrls) {
+									contentParts.push({
+										type: 'image_url',
+										image_url: {
+											url: imageUrl,
+										},
+									});
+								}
+								
+								return {
+									role,
+									content: contentParts,
+								};
+							}
+							
+							// Otherwise, return simple text content
+							return {
+								role,
+								content,
+							};
+						});
+
+						// Validate messages
+						if (messages.length === 0) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'At least one message is required. Please add a message to the prompt.',
+							);
+						}
+
+						// Validate message structure
+						for (const message of messages) {
+							if (!message || !message.role) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'Each message must have a "role" property.',
+								);
+							}
+							
+							if (typeof message.content === 'string') {
+                                if (!message.content) {
+									throw new NodeOperationError(
+										this.getNode(),
+										'Text message content cannot be empty.',
+									);
+								}
+							} else if (Array.isArray(message.content)) {
+								if (message.content.length === 0) {
+									throw new NodeOperationError(
+										this.getNode(),
+										'Message content array cannot be empty.',
+									);
+								}
+							} else {
+								throw new NodeOperationError(
+									this.getNode(),
+									'Message content must be either a string or an array of content parts.',
+								);
+							}
+						}
+
+						// Parse response_format if provided
+						let responseFormat: { type: string; schema?: any } | undefined;
+						if (responseFormatParam && responseFormatParam !== '') {
+							try {
+								responseFormat = JSON.parse(responseFormatParam);
+							} catch (error) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'Invalid JSON format for response_format. Please provide a valid JSON object.',
+								);
+							}
+						}
+
+						response = await ApiService.chatCompletion(this, messages, model, maxTokens, responseFormat);
 						break;
 					}
 
