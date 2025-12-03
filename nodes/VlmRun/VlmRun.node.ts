@@ -358,6 +358,57 @@ export class VlmRun implements INodeType {
 				],
 			},
 			{
+				displayName: 'Input Type',
+				name: 'inputType',
+				type: 'options',
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+					},
+				},
+				options: [
+					{
+						name: 'Image URL(s)',
+						value: 'url',
+					},
+				],
+				default: 'url',
+				description: 'Type of image input',
+			},
+			{
+				displayName: 'URL(s)',
+				name: 'imageUrls',
+				type: 'fixedCollection',
+				placeholder: 'Add URL',
+				typeOptions: {
+					multipleValues: true,
+				},
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+					},
+				},
+				default: {},
+				description: 'Image URL(s) to include in the chat completion',
+				options: [
+					{
+						displayName: 'URL',
+						name: 'url',
+						values: [
+							{
+								displayName: 'URL',
+								name: 'url',
+								type: 'string',
+								default: '',
+								placeholder: 'https://example.com/image.jpg',
+								required: true,
+								description: 'Image URL',
+							},
+						],
+					},
+				],
+			},
+			{
 				displayName: 'Max Tokens',
 				name: 'maxTokens',
 				type: 'number',
@@ -530,12 +581,66 @@ export class VlmRun implements INodeType {
 
 						// Extract messages from fixedCollection
 						const messagesData = (promptParam.messages as IDataObject[]) || [];
-						const messages: Array<{ role: string; content: string }> = messagesData.map(
-							(msg: IDataObject) => ({
-								role: msg.role as string,
-								content: msg.content as string,
-							}),
-						);
+
+						// Process image URLs
+						const imageUrls: string[] = [];
+						const imageUrlsParam = this.getNodeParameter('imageUrls', i) as IDataObject;
+						if (imageUrlsParam && imageUrlsParam.url) {
+							const urlEntries = Array.isArray(imageUrlsParam.url) ? imageUrlsParam.url : [imageUrlsParam.url];
+							for (const entry of urlEntries) {
+								if (entry && typeof entry === 'object' && entry.url) {
+									const url = entry.url as string;
+									if (url && url.trim()) {
+										imageUrls.push(url.trim());
+									}
+								}
+							}
+						}
+
+						// Build messages with support for images
+						const messages: Array<{ 
+							role: string; 
+							content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> 
+						}> = messagesData.map((msg: IDataObject, index: number) => {
+							const role = msg.role as string;
+							const content = msg.content as string;
+							
+							// If this is the last user message and we have images, include them
+							if (imageUrls.length > 0 && 
+								role === 'user' && 
+								index === messagesData.length - 1) {
+								// Create content array with text and images
+								const contentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+								
+								if (content && content.trim()) {
+									contentParts.push({
+										type: 'text',
+										text: content,
+									});
+								}
+								
+								// Add all images
+								for (const imageUrl of imageUrls) {
+									contentParts.push({
+										type: 'image_url',
+										image_url: {
+											url: imageUrl,
+										},
+									});
+								}
+								
+								return {
+									role,
+									content: contentParts,
+								};
+							}
+							
+							// Otherwise, return simple text content
+							return {
+								role,
+								content,
+							};
+						});
 
 						// Validate messages
 						if (messages.length === 0) {
@@ -547,10 +652,31 @@ export class VlmRun implements INodeType {
 
 						// Validate message structure
 						for (const message of messages) {
-							if (!message || !message.role || !message.content) {
+							if (!message || !message.role) {
 								throw new NodeOperationError(
 									this.getNode(),
-									'Each message must have both "role" and "content" properties.',
+									'Each message must have a "role" property.',
+								);
+							}
+							
+							if (typeof message.content === 'string') {
+								if (!message.content) {
+									throw new NodeOperationError(
+										this.getNode(),
+										'Text messages must have a "content" property.',
+									);
+								}
+							} else if (Array.isArray(message.content)) {
+								if (message.content.length === 0) {
+									throw new NodeOperationError(
+										this.getNode(),
+										'Message content array cannot be empty.',
+									);
+								}
+							} else {
+								throw new NodeOperationError(
+									this.getNode(),
+									'Message content must be either a string or an array of content parts.',
 								);
 							}
 						}

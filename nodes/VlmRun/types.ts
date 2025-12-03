@@ -36,7 +36,13 @@ export interface FileResponse extends IDataObject {
 
 export interface ChatMessage {
 	role: string;
-	content: string;
+	content: string | Array<{
+		type: 'text' | 'image_url';
+		text?: string;
+		image_url?: {
+			url: string;
+		};
+	}>;
 }
 
 export interface ResponseFormat {

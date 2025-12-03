@@ -349,7 +349,10 @@ export class VlmRunClient {
 	// Chat Completion API
 	public chat = {
 		completions: async (request: {
-			messages: Array<{ role: string; content: string }>;
+			messages: Array<{ 
+				role: string; 
+				content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> 
+			}>;
 			model: string;
 			max_tokens?: number;
 			response_format?: {
@@ -357,24 +360,15 @@ export class VlmRunClient {
 				schema?: any;
 			};
 		}): Promise<any> => {
-			// The agentBaseURL might already include /v1 (e.g., https://dev-agent.vlm.run/v1)
-			// So we need to check and construct the endpoint accordingly
-			// Target URL: https://dev-agent.vlm.run/v1/openai/chat/completions
 			let endpoint: string;
-			// if (this.agentBaseURL.endsWith('/v1')) {
-				// If baseURL already has /v1, just add /openai/chat/completions
-				endpoint = '/openai/chat/completions';
-			// } else {
-				// If baseURL doesn't have /v1, add /v1/openai/chat/completions
-				// endpoint = '/v1/openai/chat/completions';
-			// }
+			endpoint = '/openai/chat/completions';
 			const url = `${this.agentBaseURL}${endpoint}`;
 			console.log('Chat Completion Request URL:', url);
 			console.log('Chat Completion Request Body:', JSON.stringify(request, null, 2));
 			console.log('Agent Base URL:', this.agentBaseURL);
 			console.log('Endpoint:', endpoint);
 			
-			// Use makeAgentRequest instead of makeRequest since we're using agentBaseURL
+			
 			return this.makeAgentRequest('POST', endpoint, request);
 		},
 	};

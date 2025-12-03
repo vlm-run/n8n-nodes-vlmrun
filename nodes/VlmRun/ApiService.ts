@@ -159,7 +159,10 @@ export class ApiService {
 	// Chat Completion Operations
 	static async chatCompletion(
 		ef: IExecuteFunctions,
-		messages: Array<{ role: string; content: string }>,
+		messages: Array<{ 
+			role: string; 
+			content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> 
+		}>,
 		model: string,
 		max_tokens?: number,
 		response_format?: {
