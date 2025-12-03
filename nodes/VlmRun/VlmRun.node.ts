@@ -9,7 +9,7 @@ import {
 	INodePropertyOptions,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { FileRequest } from './types';
+import { FileRequest, ChatMessage } from './types';
 import { ApiService } from './ApiService';
 import { processFile, processImageRequest } from './utils';
 
@@ -598,19 +598,15 @@ export class VlmRun implements INodeType {
 						}
 
 						// Build messages with support for images
-						const messages: Array<{ 
-							role: string; 
-							content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> 
-						}> = messagesData.map((msg: IDataObject, index: number) => {
+						const messages: ChatMessage[] = messagesData.map((msg: IDataObject, index: number) => {
 							const role = msg.role as string;
 							const content = msg.content as string;
 							
-							// If this is the last user message and we have images, include them
 							if (imageUrls.length > 0 && 
 								role === 'user' && 
 								index === messagesData.length - 1) {
 								// Create content array with text and images
-								const contentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+								const contentParts: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [];
 								
 								if (content && content.trim()) {
 									contentParts.push({

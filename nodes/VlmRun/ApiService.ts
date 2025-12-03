@@ -1,5 +1,5 @@
 import { IExecuteFunctions, IDataObject, ILoadOptionsFunctions } from 'n8n-workflow';
-import { FileRequest, PredictionResponse, FileResponse, ImageRequest } from './types';
+import { FileRequest, PredictionResponse, FileResponse, ImageRequest, ChatMessage, ChatCompletionRequest, ResponseFormat } from './types';
 import { AgentCreateRequest, VlmRunClient } from './VlmRunClient';
 import { FileService, PredictionService, DomainService } from './services';
 
@@ -159,19 +159,13 @@ export class ApiService {
 	// Chat Completion Operations
 	static async chatCompletion(
 		ef: IExecuteFunctions,
-		messages: Array<{ 
-			role: string; 
-			content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> 
-		}>,
+		messages: ChatMessage[],
 		model: string,
 		max_tokens?: number,
-		response_format?: {
-			type: string;
-			schema?: any;
-		},
+		response_format?: ResponseFormat,
 	): Promise<IDataObject> {
 		const client = await this.initializeVlmRun(ef);
-		const request: any = { messages, model };
+		const request: ChatCompletionRequest = { messages, model };
 		if (max_tokens !== undefined) {
 			request.max_tokens = max_tokens;
 		}

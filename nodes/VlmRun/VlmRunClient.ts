@@ -1,4 +1,5 @@
 import { IExecuteFunctions, IHttpRequestOptions, IHttpRequestMethods } from 'n8n-workflow';
+import { ChatCompletionRequest } from './types';
 import packageJson from '../../package.json';
 
 export interface VlmRunConfig {
@@ -353,27 +354,8 @@ export class VlmRunClient {
 
 	// Chat Completion API
 	public chat = {
-		completions: async (request: {
-			messages: Array<{ 
-				role: string; 
-				content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> 
-			}>;
-			model: string;
-			max_tokens?: number;
-			response_format?: {
-				type: string;
-				schema?: any;
-			};
-		}): Promise<any> => {
-			let endpoint: string;
-			endpoint = '/openai/chat/completions';
-			const url = `${this.agentBaseURL}${endpoint}`;
-			console.log('Chat Completion Request URL:', url);
-			console.log('Chat Completion Request Body:', JSON.stringify(request, null, 2));
-			console.log('Agent Base URL:', this.agentBaseURL);
-			console.log('Endpoint:', endpoint);
-			
-			
+		completions: async (request: ChatCompletionRequest): Promise<any> => {
+			const endpoint = '/openai/chat/completions';
 			return this.makeAgentRequest('POST', endpoint, request);
 		},
 	};
