@@ -1,4 +1,5 @@
 import { IExecuteFunctions, IHttpRequestOptions, IHttpRequestMethods } from 'n8n-workflow';
+import packageJson from '../../package.json';
 
 export interface VlmRunConfig {
 	baseURL: string;
@@ -108,7 +109,9 @@ export class VlmRunClient {
 		const options: IHttpRequestOptions = {
 			method: method as IHttpRequestMethods,
 			url,
-			headers: {},
+			headers: {
+				'X-Client-Id': `n8n-vlmrun-${packageJson.version}`,
+			},
 		};
 
 		if (contentType) {
@@ -172,7 +175,9 @@ export class VlmRunClient {
 		const options: IHttpRequestOptions = {
 			method: method as IHttpRequestMethods,
 			url,
-			headers: {},
+			headers: {
+				'X-Client-Id': `n8n-vlmrun-${packageJson.version}`,
+			},
 		};
 
 		if (contentType) {
