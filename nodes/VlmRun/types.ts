@@ -37,12 +37,15 @@ export interface FileResponse extends IDataObject {
 export interface ChatMessage {
 	role: string;
 	content: string | Array<{
-		type: 'text' | 'image_url' | 'video_url';
+		type: 'text' | 'image_url' | 'video_url' | 'file_url';
 		text?: string;
 		image_url?: {
 			url: string;
 		};
 		video_url?: {
+			url: string;
+		};
+		file_url?: {
 			url: string;
 		};
 	}>;

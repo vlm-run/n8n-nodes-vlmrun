@@ -299,8 +299,16 @@ export class VlmRun implements INodeType {
 				},
 				options: [
 					{
+						name: 'vlmrun-orion-1:fast',
+						value: 'vlmrun-orion-1:fast',
+					},
+					{
 						name: 'vlmrun-orion-1:auto',
 						value: 'vlmrun-orion-1:auto',
+					},
+					{
+						name: 'vlmrun-orion-1:pro',
+						value: 'vlmrun-orion-1:pro',
 					},
 				],
 				default: 'vlmrun-orion-1:auto',
@@ -375,6 +383,10 @@ export class VlmRun implements INodeType {
 						name: 'Video URL(s)',
 						value: 'video',
 					},
+					{
+						name: 'File URL(s)',
+						value: 'file',
+					},
 				],
 				default: 'image',
 				description: 'Type of media input',
@@ -442,6 +454,40 @@ export class VlmRun implements INodeType {
 								placeholder: 'https://example.com/video.mp4',
 								required: true,
 								description: 'Video URL',
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'File URL(s)',
+				name: 'fileUrls',
+				type: 'fixedCollection',
+				placeholder: 'Add URL',
+				typeOptions: {
+					multipleValues: true,
+				},
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+						inputType: ['file'],
+					},
+				},
+				default: {},
+				description: 'File URL(s) to include in the chat completion (PDFs, documents, etc.)',
+				options: [
+					{
+						displayName: 'URL',
+						name: 'url',
+						values: [
+							{
+								displayName: 'URL',
+								name: 'url',
+								type: 'string',
+								default: '',
+								placeholder: 'https://example.com/document.pdf',
+								required: true,
+								description: 'File URL',
 							},
 						],
 					},
@@ -656,20 +702,38 @@ export class VlmRun implements INodeType {
 							}
 						}
 
-						// Build messages with support for images and videos
+						// Process file URLs
+						const fileUrls: string[] = [];
+						if (inputType === 'file') {
+							const fileUrlsParam = this.getNodeParameter('fileUrls', i) as IDataObject;
+							if (fileUrlsParam && fileUrlsParam.url) {
+								const urlEntries = Array.isArray(fileUrlsParam.url) ? fileUrlsParam.url : [fileUrlsParam.url];
+								for (const entry of urlEntries) {
+									if (entry && typeof entry === 'object' && entry.url) {
+										const url = entry.url as string;
+										if (url && url.trim()) {
+											fileUrls.push(url.trim());
+										}
+									}
+								}
+							}
+						}
+
+						// Build messages with support for images, videos, and files
 						const messages: ChatMessage[] = messagesData.map((msg: IDataObject, index: number) => {
 							const role = msg.role as string;
 							const content = msg.content as string;
 							
-							if ((imageUrls.length > 0 || videoUrls.length > 0) && 
+							if ((imageUrls.length > 0 || videoUrls.length > 0 || fileUrls.length > 0) && 
 								role === 'user' && 
 								index === messagesData.length - 1) {
-								// Create content array with text, images, and videos
+								// Create content array with text, images, videos, and files
 								const contentParts: Array<{ 
-									type: 'text' | 'image_url' | 'video_url'; 
+									type: 'text' | 'image_url' | 'video_url' | 'file_url'; 
 									text?: string; 
 									image_url?: { url: string };
 									video_url?: { url: string };
+									file_url?: { url: string };
 								}> = [];
 								
 								if (content && content.trim()) {
@@ -695,6 +759,16 @@ export class VlmRun implements INodeType {
 										type: 'video_url',
 										video_url: {
 											url: videoUrl,
+										},
+									});
+								}
+								
+								// Add all files
+								for (const fileUrl of fileUrls) {
+									contentParts.push({
+										type: 'file_url',
+										file_url: {
+											url: fileUrl,
 										},
 									});
 								}
