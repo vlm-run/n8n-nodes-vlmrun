@@ -408,34 +408,34 @@ export class VlmRun implements INodeType {
 					},
 				],
 			},
-			{
-				displayName: 'Max Tokens',
-				name: 'maxTokens',
-				type: 'number',
-				displayOptions: {
-					show: {
-						operation: ['chatCompletion'],
-					},
-				},
-				default: 32768,
-				typeOptions: {
-					maxValue: 32768,
-				},
-				description: 'The maximum number of tokens to generate in the completion',
-			},
-			{
-				displayName: 'Response Format',
-				name: 'responseFormat',
-				type: 'json',
-				displayOptions: {
-					show: {
-						operation: ['chatCompletion'],
-					},
-				},
-				default: '',
-				description:
-					'Specify the format of the response. Use JSON schema format: {"type": "json_schema", "schema": {...}}',
-			},
+			// {
+			// 	displayName: 'Max Tokens',
+			// 	name: 'maxTokens',
+			// 	type: 'number',
+			// 	displayOptions: {
+			// 		show: {
+			// 			operation: ['chatCompletion'],
+			// 		},
+			// 	},
+			// 	default: 32768,
+			// 	typeOptions: {
+			// 		maxValue: 32768,
+			// 	},
+			// 	description: 'The maximum number of tokens to generate in the completion',
+			// },
+			// {
+			// 	displayName: 'Response Format',
+			// 	name: 'responseFormat',
+			// 	type: 'json',
+			// 	displayOptions: {
+			// 		show: {
+			// 			operation: ['chatCompletion'],
+			// 		},
+			// 	},
+			// 	default: '',
+			// 	description:
+			// 		'Specify the format of the response. Use JSON schema format: {"type": "json_schema", "schema": {...}}',
+			// },
 		],
 	};
 
@@ -576,8 +576,8 @@ export class VlmRun implements INodeType {
 					case 'chatCompletion': {
 						const promptParam = this.getNodeParameter('prompt', i) as IDataObject;
 						const model = this.getNodeParameter('model', i) as string;
-						const maxTokens = this.getNodeParameter('maxTokens', i) as number | undefined;
-						const responseFormatParam = this.getNodeParameter('responseFormat', i) as string | undefined;
+						// const maxTokens = this.getNodeParameter('maxTokens', i) as number | undefined;
+						// const responseFormatParam = this.getNodeParameter('responseFormat', i) as string | undefined;
 
 						// Extract messages from fixedCollection
 						const messagesData = (promptParam.messages as IDataObject[]) || [];
@@ -678,19 +678,19 @@ export class VlmRun implements INodeType {
 						}
 
 						// Parse response_format if provided
-						let responseFormat: { type: string; schema?: any } | undefined;
-						if (responseFormatParam && responseFormatParam !== '') {
-							try {
-								responseFormat = JSON.parse(responseFormatParam);
-							} catch (error) {
-								throw new NodeOperationError(
-									this.getNode(),
-									'Invalid JSON format for response_format. Please provide a valid JSON object.',
-								);
-							}
-						}
+						// let responseFormat: { type: string; schema?: any } | undefined;
+						// if (responseFormatParam && responseFormatParam !== '') {
+						// 	try {
+						// 		responseFormat = JSON.parse(responseFormatParam);
+						// 	} catch (error) {
+						// 		throw new NodeOperationError(
+						// 			this.getNode(),
+						// 			'Invalid JSON format for response_format. Please provide a valid JSON object.',
+						// 		);
+						// 	}
+						// }
 
-						response = await ApiService.chatCompletion(this, messages, model, maxTokens, responseFormat);
+						response = await ApiService.chatCompletion(this, messages, model);
 						break;
 					}
 
