@@ -369,14 +369,18 @@ export class VlmRun implements INodeType {
 				options: [
 					{
 						name: 'Image URL(s)',
-						value: 'url',
+						value: 'image',
+					},
+					{
+						name: 'Video URL(s)',
+						value: 'video',
 					},
 				],
-				default: 'url',
-				description: 'Type of image input',
+				default: 'image',
+				description: 'Type of media input',
 			},
 			{
-				displayName: 'URL(s)',
+				displayName: 'Image URL(s)',
 				name: 'imageUrls',
 				type: 'fixedCollection',
 				placeholder: 'Add URL',
@@ -386,6 +390,7 @@ export class VlmRun implements INodeType {
 				displayOptions: {
 					show: {
 						operation: ['chatCompletion'],
+						inputType: ['image'],
 					},
 				},
 				default: {},
@@ -403,6 +408,40 @@ export class VlmRun implements INodeType {
 								placeholder: 'https://example.com/image.jpg',
 								required: true,
 								description: 'Image URL',
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Video URL(s)',
+				name: 'videoUrls',
+				type: 'fixedCollection',
+				placeholder: 'Add URL',
+				typeOptions: {
+					multipleValues: true,
+				},
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+						inputType: ['video'],
+					},
+				},
+				default: {},
+				description: 'Video URL(s) to include in the chat completion',
+				options: [
+					{
+						displayName: 'URL',
+						name: 'url',
+						values: [
+							{
+								displayName: 'URL',
+								name: 'url',
+								type: 'string',
+								default: '',
+								placeholder: 'https://example.com/video.mp4',
+								required: true,
+								description: 'Video URL',
 							},
 						],
 					},
@@ -576,6 +615,7 @@ export class VlmRun implements INodeType {
 					case 'chatCompletion': {
 						const promptParam = this.getNodeParameter('prompt', i) as IDataObject;
 						const model = this.getNodeParameter('model', i) as string;
+						const inputType = this.getNodeParameter('inputType', i) as string;
 						// const maxTokens = this.getNodeParameter('maxTokens', i) as number | undefined;
 						// const responseFormatParam = this.getNodeParameter('responseFormat', i) as string | undefined;
 
@@ -584,29 +624,53 @@ export class VlmRun implements INodeType {
 
 						// Process image URLs
 						const imageUrls: string[] = [];
-						const imageUrlsParam = this.getNodeParameter('imageUrls', i) as IDataObject;
-						if (imageUrlsParam && imageUrlsParam.url) {
-							const urlEntries = Array.isArray(imageUrlsParam.url) ? imageUrlsParam.url : [imageUrlsParam.url];
-							for (const entry of urlEntries) {
-								if (entry && typeof entry === 'object' && entry.url) {
-									const url = entry.url as string;
-									if (url && url.trim()) {
-										imageUrls.push(url.trim());
+						if (inputType === 'image') {
+							const imageUrlsParam = this.getNodeParameter('imageUrls', i) as IDataObject;
+							if (imageUrlsParam && imageUrlsParam.url) {
+								const urlEntries = Array.isArray(imageUrlsParam.url) ? imageUrlsParam.url : [imageUrlsParam.url];
+								for (const entry of urlEntries) {
+									if (entry && typeof entry === 'object' && entry.url) {
+										const url = entry.url as string;
+										if (url && url.trim()) {
+											imageUrls.push(url.trim());
+										}
 									}
 								}
 							}
 						}
 
-						// Build messages with support for images
+						// Process video URLs
+						const videoUrls: string[] = [];
+						if (inputType === 'video') {
+							const videoUrlsParam = this.getNodeParameter('videoUrls', i) as IDataObject;
+							if (videoUrlsParam && videoUrlsParam.url) {
+								const urlEntries = Array.isArray(videoUrlsParam.url) ? videoUrlsParam.url : [videoUrlsParam.url];
+								for (const entry of urlEntries) {
+									if (entry && typeof entry === 'object' && entry.url) {
+										const url = entry.url as string;
+										if (url && url.trim()) {
+											videoUrls.push(url.trim());
+										}
+									}
+								}
+							}
+						}
+
+						// Build messages with support for images and videos
 						const messages: ChatMessage[] = messagesData.map((msg: IDataObject, index: number) => {
 							const role = msg.role as string;
 							const content = msg.content as string;
 							
-							if (imageUrls.length > 0 && 
+							if ((imageUrls.length > 0 || videoUrls.length > 0) && 
 								role === 'user' && 
 								index === messagesData.length - 1) {
-								// Create content array with text and images
-								const contentParts: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [];
+								// Create content array with text, images, and videos
+								const contentParts: Array<{ 
+									type: 'text' | 'image_url' | 'video_url'; 
+									text?: string; 
+									image_url?: { url: string };
+									video_url?: { url: string };
+								}> = [];
 								
 								if (content && content.trim()) {
 									contentParts.push({
@@ -621,6 +685,16 @@ export class VlmRun implements INodeType {
 										type: 'image_url',
 										image_url: {
 											url: imageUrl,
+										},
+									});
+								}
+								
+								// Add all videos
+								for (const videoUrl of videoUrls) {
+									contentParts.push({
+										type: 'video_url',
+										video_url: {
+											url: videoUrl,
 										},
 									});
 								}
