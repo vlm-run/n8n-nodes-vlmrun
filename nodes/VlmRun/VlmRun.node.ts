@@ -855,11 +855,19 @@ export class VlmRun implements INodeType {
 
 						// Simplify output if requested
 						if (simplifyOutput && response && (response as any).choices && (response as any).choices.length > 0) {
-							const firstChoice = (response as any).choices[0];
-							response = {
-								content: firstChoice.message?.content || '',
-								role: firstChoice.message?.role || 'assistant',
-							};
+							const choices = (response as any).choices;
+							// Return simplified structure matching OpenAI format
+							response = choices.map((choice: any, index: number) => ({
+								index: choice.index !== undefined ? choice.index : index,
+								message: {
+									role: choice.message?.role || 'assistant',
+									content: choice.message?.content || '',
+									refusal: choice.message?.refusal || null,
+									annotations: choice.message?.annotations || [],
+								},
+								logprobs: choice.logprobs || null,
+								finish_reason: choice.finish_reason || 'stop',
+							}));
 						}
 
 						break;
