@@ -493,6 +493,18 @@ export class VlmRun implements INodeType {
 					},
 				],
 			},
+			{
+				displayName: 'Simplify Output',
+				name: 'simplifyOutput',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+					},
+				},
+				default: false,
+				description: 'Return only the message content instead of full API response',
+			},
 			// {
 			// 	displayName: 'Max Tokens',
 			// 	name: 'maxTokens',
@@ -662,6 +674,7 @@ export class VlmRun implements INodeType {
 						const promptParam = this.getNodeParameter('prompt', i) as IDataObject;
 						const model = this.getNodeParameter('model', i) as string;
 						const inputType = this.getNodeParameter('inputType', i) as string;
+						const simplifyOutput = this.getNodeParameter('simplifyOutput', i) as boolean;
 						// const maxTokens = this.getNodeParameter('maxTokens', i) as number | undefined;
 						// const responseFormatParam = this.getNodeParameter('responseFormat', i) as string | undefined;
 
@@ -839,6 +852,16 @@ export class VlmRun implements INodeType {
 						// }
 
 						response = await ApiService.chatCompletion(this, messages, model);
+
+						// Simplify output if requested
+						if (simplifyOutput && response && (response as any).choices && (response as any).choices.length > 0) {
+							const firstChoice = (response as any).choices[0];
+							response = {
+								content: firstChoice.message?.content || '',
+								role: firstChoice.message?.role || 'assistant',
+							};
+						}
+
 						break;
 					}
 
