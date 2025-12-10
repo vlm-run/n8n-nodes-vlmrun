@@ -817,10 +817,10 @@ export class VlmRun implements INodeType {
 							}
 							
 							if (typeof message.content === 'string') {
-								if (!message.content) {
+                                if (!message.content) {
 									throw new NodeOperationError(
 										this.getNode(),
-										'Text messages must have a "content" property.',
+										'Text message content cannot be empty.',
 									);
 								}
 							} else if (Array.isArray(message.content)) {
