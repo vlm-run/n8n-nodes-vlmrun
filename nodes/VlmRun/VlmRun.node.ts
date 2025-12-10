@@ -503,7 +503,7 @@ export class VlmRun implements INodeType {
 					},
 				},
 				default: false,
-				description: 'Return only the message content instead of full API response',
+				description: 'Whether to return only the message content instead of full API response',
 			},
 			// {
 			// 	displayName: 'Max Tokens',
