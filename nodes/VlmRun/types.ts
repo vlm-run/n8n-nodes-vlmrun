@@ -52,7 +52,7 @@ export interface ChatMessage {
 }
 
 export interface ResponseFormat {
-	type: 'json_schema' | string;
+	type: 'json_schema' | 'json_object' | string;
 	schema?: IDataObject;
 }
 

@@ -505,6 +505,18 @@ export class VlmRun implements INodeType {
 				default: false,
 				description: 'Whether to return only the message content instead of full API response',
 			},
+			{
+				displayName: 'Output Content as JSON',
+				name: 'jsonOutput',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+					},
+				},
+				default: false,
+				description: 'Whether to attempt to parse the message content as JSON object',
+			},
 			// {
 			// 	displayName: 'Max Tokens',
 			// 	name: 'maxTokens',
@@ -675,6 +687,7 @@ export class VlmRun implements INodeType {
 						const model = this.getNodeParameter('model', i) as string;
 						const inputType = this.getNodeParameter('inputType', i) as string;
 						const simplifyOutput = this.getNodeParameter('simplifyOutput', i) as boolean;
+						const jsonOutput = this.getNodeParameter('jsonOutput', i) as boolean;
 						// const maxTokens = this.getNodeParameter('maxTokens', i) as number | undefined;
 						// const responseFormatParam = this.getNodeParameter('responseFormat', i) as string | undefined;
 
@@ -733,7 +746,7 @@ export class VlmRun implements INodeType {
 						}
 
 						// Build messages with support for images, videos, and files
-						const messages: ChatMessage[] = messagesData.map((msg: IDataObject, index: number) => {
+						let messages: ChatMessage[] = messagesData.map((msg: IDataObject, index: number) => {
 							const role = msg.role as string;
 							const content = msg.content as string;
 							
@@ -838,20 +851,38 @@ export class VlmRun implements INodeType {
 							}
 						}
 
-						// Parse response_format if provided
-						// let responseFormat: { type: string; schema?: any } | undefined;
-						// if (responseFormatParam && responseFormatParam !== '') {
-						// 	try {
-						// 		responseFormat = JSON.parse(responseFormatParam);
-						// 	} catch (error) {
-						// 		throw new NodeOperationError(
-						// 			this.getNode(),
-						// 			'Invalid JSON format for response_format. Please provide a valid JSON object.',
-						// 		);
-						// 	}
-						// }
+						// Set response_format if jsonOutput is enabled (similar to OpenAI node)
+						let responseFormat: { type: string; schema?: any } | undefined;
+						if (jsonOutput) {
+							responseFormat = { type: 'json_object' };
+							// Prepend system message to guide model to output JSON (like OpenAI does)
+							const hasSystemMessage = messages.some((msg) => msg.role === 'system');
+							if (!hasSystemMessage) {
+								messages = [
+									{
+										role: 'system',
+										content: 'You are a helpful assistant designed to output JSON.',
+									},
+									...messages,
+								];
+							}
+						}
 
-						response = await ApiService.chatCompletion(this, messages, model);
+						response = await ApiService.chatCompletion(this, messages, model, undefined, responseFormat);
+
+						// Parse content as JSON if requested (similar to OpenAI node)
+						if (jsonOutput && response && (response as any).choices) {
+							(response as any).choices = (response as any).choices.map((choice: any) => {
+								if (choice.message?.content && typeof choice.message.content === 'string') {
+									try {
+										choice.message.content = JSON.parse(choice.message.content);
+									} catch (error) {
+										// If parsing fails, keep as string
+									}
+								}
+								return choice;
+							});
+						}
 
 						// Simplify output if requested
 						if (simplifyOutput && response && (response as any).choices && (response as any).choices.length > 0) {
