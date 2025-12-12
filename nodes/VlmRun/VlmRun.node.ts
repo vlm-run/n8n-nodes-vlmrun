@@ -505,18 +505,6 @@ export class VlmRun implements INodeType {
 				default: false,
 				description: 'Whether to return only the message content instead of full API response',
 			},
-			{
-				displayName: 'Output Content as JSON',
-				name: 'jsonOutput',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						operation: ['chatCompletion'],
-					},
-				},
-				default: false,
-				description: 'Whether to attempt to parse the message content as JSON object',
-			},
 			// {
 			// 	displayName: 'Max Tokens',
 			// 	name: 'maxTokens',
@@ -687,7 +675,6 @@ export class VlmRun implements INodeType {
 						const model = this.getNodeParameter('model', i) as string;
 						const inputType = this.getNodeParameter('inputType', i) as string;
 						const simplifyOutput = this.getNodeParameter('simplifyOutput', i) as boolean;
-						const jsonOutput = this.getNodeParameter('jsonOutput', i) as boolean;
 						// const maxTokens = this.getNodeParameter('maxTokens', i) as number | undefined;
 						const responseFormatParam = this.getNodeParameter('responseFormat', i) as string | IDataObject | undefined;
 
@@ -900,30 +887,17 @@ export class VlmRun implements INodeType {
 							}
 						}
 
-						// Set response_format if jsonOutput is enabled (similar to OpenAI node)
-						// User-defined responseFormat takes precedence over jsonOutput
+						// Set response_format if user-defined format is provided
 						let responseFormat: ResponseFormat | undefined;
 						if (userDefinedResponseFormat) {
 							responseFormat = userDefinedResponseFormat;
-						} else if (jsonOutput) {
-							responseFormat = { type: 'json_object' };
-							// Prepend system message to guide model to output JSON (like OpenAI does)
-							const hasSystemMessage = messages.some((msg) => msg.role === 'system');
-							if (!hasSystemMessage) {
-								messages = [
-									{
-										role: 'system',
-										content: 'You are a helpful assistant designed to output JSON.',
-									},
-									...messages,
-								];
-							}
 						}
 
 						response = await ApiService.chatCompletion(this, messages, model, undefined, responseFormat);
 
+						console.log(JSON.stringify(response, null, 2));
 						// Parse content as JSON if structured output was requested
-						// This handles both jsonOutput and user-defined responseFormat
+						// This handles user-defined responseFormat
 						if (responseFormat && response && (response as any).choices) {
 							(response as any).choices = (response as any).choices.map((choice: any) => {
 								if (choice.message?.content && typeof choice.message.content === 'string') {
