@@ -548,7 +548,7 @@ export class VlmRun implements INodeType {
 				},
 				default: '',
 				description:
-					'Specify the format of the response using JSON schema. Format: {"type": "json_schema", "schema": {...}}. The schema should follow JSON Schema Draft 7 specification.',
+					'Specify the format of the response using JSON schema. Format: {"type": "json_schema", "strict": true, "schema": {...}}. Optional: "name" property for schema identification. The schema should follow JSON Schema Draft 7 specification. For structured outputs, "strict": true is automatically set if not provided.',
 			},
 		],
 	};
@@ -894,6 +894,12 @@ export class VlmRun implements INodeType {
 										// Validate that if type is json_schema, schema must be provided
 										if (userDefinedResponseFormat.type === 'json_schema' && !userDefinedResponseFormat.schema) {
 											throw new Error('Schema is required when type is "json_schema"');
+										}
+										
+										// For structured outputs (json_schema), ensure strict is set to true if not provided
+										// This matches OpenAI's Structured Outputs format
+										if (userDefinedResponseFormat.type === 'json_schema' && userDefinedResponseFormat.strict === undefined) {
+											userDefinedResponseFormat.strict = true;
 										}
 									}
 									// If it's an empty object or doesn't have type/schema, treat as undefined (ignore it)
