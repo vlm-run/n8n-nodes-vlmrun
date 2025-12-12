@@ -376,6 +376,10 @@ export class VlmRun implements INodeType {
 				},
 				options: [
 					{
+						name: 'Text',
+						value: 'text',
+					},
+					{
 						name: 'Image URL(s)',
 						value: 'image',
 					},
@@ -388,8 +392,21 @@ export class VlmRun implements INodeType {
 						value: 'file',
 					},
 				],
-				default: 'image',
-				description: 'Type of media input',
+				default: 'text',
+				description: 'Type of input',
+			},
+			{
+				displayName: 'Output Content as JSON',
+				name: 'jsonOutput',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+						inputType: ['text'],
+					},
+				},
+				default: false,
+				description: 'Whether to attempt to parse the message content as JSON object',
 			},
 			{
 				displayName: 'Image URL(s)',
@@ -677,6 +694,7 @@ export class VlmRun implements INodeType {
 						const simplifyOutput = this.getNodeParameter('simplifyOutput', i) as boolean;
 						// const maxTokens = this.getNodeParameter('maxTokens', i) as number | undefined;
 						const responseFormatParam = this.getNodeParameter('responseFormat', i) as string | IDataObject | undefined;
+						const jsonOutput = inputType === 'text' ? (this.getNodeParameter('jsonOutput', i) as boolean) : false;
 
 						// Extract messages from fixedCollection
 						const messagesData = (promptParam.messages as IDataObject[]) || [];
@@ -733,11 +751,14 @@ export class VlmRun implements INodeType {
 						}
 
 						// Build messages with support for images, videos, and files
+						// For text input, don't add URLs - just use text content
 						let messages: ChatMessage[] = messagesData.map((msg: IDataObject, index: number) => {
 							const role = msg.role as string;
 							const content = msg.content as string;
 							
-							if ((imageUrls.length > 0 || videoUrls.length > 0 || fileUrls.length > 0) && 
+							// Only add URLs for non-text input types
+							if (inputType !== 'text' && 
+								(imageUrls.length > 0 || videoUrls.length > 0 || fileUrls.length > 0) && 
 								role === 'user' && 
 								index === messagesData.length - 1) {
 								// Create content array with text, images, videos, and files
@@ -888,16 +909,30 @@ export class VlmRun implements INodeType {
 						}
 
 						// Set response_format if user-defined format is provided
+						// For text input, jsonOutput takes precedence if enabled
 						let responseFormat: ResponseFormat | undefined;
 						if (userDefinedResponseFormat) {
 							responseFormat = userDefinedResponseFormat;
+						} else if (jsonOutput && inputType === 'text') {
+							responseFormat = { type: 'json_object' };
+							// Prepend system message to guide model to output JSON (like OpenAI does)
+							const hasSystemMessage = messages.some((msg) => msg.role === 'system');
+							if (!hasSystemMessage) {
+								messages = [
+									{
+										role: 'system',
+										content: 'You are a helpful assistant designed to output JSON.',
+									},
+									...messages,
+								];
+							}
 						}
 
 						response = await ApiService.chatCompletion(this, messages, model, undefined, responseFormat);
 
 						console.log(JSON.stringify(response, null, 2));
 						// Parse content as JSON if structured output was requested
-						// This handles user-defined responseFormat
+						// This handles both jsonOutput (for text input) and user-defined responseFormat
 						if (responseFormat && response && (response as any).choices) {
 							(response as any).choices = (response as any).choices.map((choice: any) => {
 								if (choice.message?.content && typeof choice.message.content === 'string') {
