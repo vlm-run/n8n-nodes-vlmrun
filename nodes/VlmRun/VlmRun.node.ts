@@ -9,7 +9,7 @@ import {
 	INodePropertyOptions,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { FileRequest, ChatMessage } from './types';
+import { FileRequest, ChatMessage, ResponseFormat } from './types';
 import { ApiService } from './ApiService';
 import { processFile, processImageRequest } from './utils';
 
@@ -532,19 +532,19 @@ export class VlmRun implements INodeType {
 			// 	},
 			// 	description: 'The maximum number of tokens to generate in the completion',
 			// },
-			// {
-			// 	displayName: 'Response Format',
-			// 	name: 'responseFormat',
-			// 	type: 'json',
-			// 	displayOptions: {
-			// 		show: {
-			// 			operation: ['chatCompletion'],
-			// 		},
-			// 	},
-			// 	default: '',
-			// 	description:
-			// 		'Specify the format of the response. Use JSON schema format: {"type": "json_schema", "schema": {...}}',
-			// },
+			{
+				displayName: 'Response Format',
+				name: 'responseFormat',
+				type: 'json',
+				displayOptions: {
+					show: {
+						operation: ['chatCompletion'],
+					},
+				},
+				default: '',
+				description:
+					'Specify the format of the response using JSON schema. Format: {"type": "json_schema", "schema": {...}}. The schema should follow JSON Schema Draft 7 specification.',
+			},
 		],
 	};
 
@@ -689,7 +689,7 @@ export class VlmRun implements INodeType {
 						const simplifyOutput = this.getNodeParameter('simplifyOutput', i) as boolean;
 						const jsonOutput = this.getNodeParameter('jsonOutput', i) as boolean;
 						// const maxTokens = this.getNodeParameter('maxTokens', i) as number | undefined;
-						// const responseFormatParam = this.getNodeParameter('responseFormat', i) as string | undefined;
+						const responseFormatParam = this.getNodeParameter('responseFormat', i) as string | IDataObject | undefined;
 
 						// Extract messages from fixedCollection
 						const messagesData = (promptParam.messages as IDataObject[]) || [];
@@ -851,9 +851,61 @@ export class VlmRun implements INodeType {
 							}
 						}
 
+						// Parse user-defined response_format if provided
+						let userDefinedResponseFormat: ResponseFormat | undefined;
+						if (responseFormatParam) {
+							try {
+								let parsed: any;
+								
+								// Handle both string and object inputs
+								if (typeof responseFormatParam === 'string') {
+									if (responseFormatParam.trim() === '') {
+										parsed = undefined;
+									} else {
+										parsed = JSON.parse(responseFormatParam);
+									}
+								} else {
+									parsed = responseFormatParam;
+								}
+								
+								// Validate structure - only set if it's a valid response format object
+								if (parsed && typeof parsed === 'object') {
+									// Check if it's an empty object or has actual structure
+									const hasType = 'type' in parsed;
+									const hasSchema = 'schema' in parsed;
+									
+									// Only treat as valid if it has type or schema (not an empty object)
+									if (hasType || hasSchema) {
+										userDefinedResponseFormat = parsed as ResponseFormat;
+										
+										// Ensure type is set if not provided but schema exists
+										if (!userDefinedResponseFormat.type && userDefinedResponseFormat.schema) {
+											userDefinedResponseFormat.type = 'json_schema';
+										}
+										
+										// Validate that if type is json_schema, schema must be provided
+										if (userDefinedResponseFormat.type === 'json_schema' && !userDefinedResponseFormat.schema) {
+											throw new Error('Schema is required when type is "json_schema"');
+										}
+									}
+									// If it's an empty object or doesn't have type/schema, treat as undefined (ignore it)
+								} else if (parsed !== undefined) {
+									throw new Error('Response format must be an object');
+								}
+							} catch (error) {
+								throw new NodeOperationError(
+									this.getNode(),
+									`Invalid JSON format for response_format: ${error instanceof Error ? error.message : String(error)}. Please provide a valid JSON object with format: {"type": "json_schema", "schema": {...}}`,
+								);
+							}
+						}
+
 						// Set response_format if jsonOutput is enabled (similar to OpenAI node)
-						let responseFormat: { type: string; schema?: any } | undefined;
-						if (jsonOutput) {
+						// User-defined responseFormat takes precedence over jsonOutput
+						let responseFormat: ResponseFormat | undefined;
+						if (userDefinedResponseFormat) {
+							responseFormat = userDefinedResponseFormat;
+						} else if (jsonOutput) {
 							responseFormat = { type: 'json_object' };
 							// Prepend system message to guide model to output JSON (like OpenAI does)
 							const hasSystemMessage = messages.some((msg) => msg.role === 'system');
@@ -870,8 +922,9 @@ export class VlmRun implements INodeType {
 
 						response = await ApiService.chatCompletion(this, messages, model, undefined, responseFormat);
 
-						// Parse content as JSON if requested (similar to OpenAI node)
-						if (jsonOutput && response && (response as any).choices) {
+						// Parse content as JSON if structured output was requested
+						// This handles both jsonOutput and user-defined responseFormat
+						if (responseFormat && response && (response as any).choices) {
 							(response as any).choices = (response as any).choices.map((choice: any) => {
 								if (choice.message?.content && typeof choice.message.content === 'string') {
 									try {
