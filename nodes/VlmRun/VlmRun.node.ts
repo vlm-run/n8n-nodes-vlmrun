@@ -9,6 +9,7 @@ import {
 	INodePropertyOptions,
 	INodeTypeDescription,
 } from 'n8n-workflow';
+
 import { FileRequest, ChatMessage, ResponseFormat } from './types';
 import { ApiService } from './ApiService';
 import { processFile, processImageRequest } from './utils';
@@ -69,24 +70,24 @@ export class VlmRun implements INodeType {
 						action: 'Analyze video',
 					},
 					{
+						name: 'Chat Completion',
+						value: 'chatCompletion',
+						description: 'Generate chat completions using OpenAI-compatible API',
+						action: 'Chat completion',
+					},
+					{
 						name: 'Execute Agent',
 						value: 'executeAgent',
 						description: 'Execute an agent',
 						action: 'Execute agent',
 					},
-				{
-					name: 'Manage Files',
-					value: 'file',
-					description: 'List uploaded files or upload new files to VLM Run',
-					action: 'Manage files',
-				},
-				{
-					name: 'Chat Completion',
-					value: 'chatCompletion',
-					description: 'Generate chat completions using OpenAI-compatible API',
-					action: 'Chat completion',
-				},
-			],
+					{
+						name: 'Manage Files',
+						value: 'file',
+						description: 'List uploaded files or upload new files to VLM Run',
+						action: 'Manage files',
+					},
+				],
 			default: 'document',
 		},
 			// File field for document, image, audio, video operations
@@ -893,7 +894,10 @@ export class VlmRun implements INodeType {
 										
 										// Validate that if type is json_schema, schema must be provided
 										if (userDefinedResponseFormat.type === 'json_schema' && !userDefinedResponseFormat.schema) {
-											throw new Error('Schema is required when type is "json_schema"');
+											throw new NodeOperationError(
+												this.getNode(),
+												'Schema is required when type is "json_schema"',
+											);
 										}
 										
 										// For structured outputs (json_schema), ensure strict is set to true if not provided
@@ -904,7 +908,10 @@ export class VlmRun implements INodeType {
 									}
 									// If it's an empty object or doesn't have type/schema, treat as undefined (ignore it)
 								} else if (parsed !== undefined) {
-									throw new Error('Response format must be an object');
+									throw new NodeOperationError(
+										this.getNode(),
+										'Response format must be an object',
+									);
 								}
 							} catch (error) {
 								throw new NodeOperationError(
