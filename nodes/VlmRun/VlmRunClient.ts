@@ -1,6 +1,7 @@
 import { IExecuteFunctions, IHttpRequestOptions, IHttpRequestMethods } from 'n8n-workflow';
 import { ChatCompletionRequest } from './types';
 import packageJson from '../../package.json';
+import { RETRY_DELAY } from './config';
 
 export interface VlmRunConfig {
 	baseURL: string;
@@ -99,6 +100,28 @@ export class VlmRunClient {
 			: config.agentBaseURL;
 	}
 
+	private handleRequestError(error: any, url: string, method: string): never {
+		// Extract error details from HTTP response
+		let errorDetail = error.message || 'Unknown error';
+		if (error.response?.body) {
+			try {
+				const errorBody =
+					typeof error.response.body === 'string'
+						? JSON.parse(error.response.body)
+						: error.response.body;
+				errorDetail = errorBody.detail || errorBody.message || errorDetail;
+			} catch {
+				errorDetail = error.response.body || errorDetail;
+			}
+		}
+
+		// Throw error with status code if available, otherwise use generic error
+		if (error.response?.status) {
+			throw new Error(`HTTP ${error.response.status}: ${errorDetail}`);
+		}
+		throw new Error(errorDetail);
+	}
+
 	private async makeRequest(
 		method: string,
 		endpoint: string,
@@ -138,29 +161,7 @@ export class VlmRunClient {
 			);
 			return response;
 		} catch (error: any) {
-			// Extract error details similar to the original implementation
-			let errorDetail = error.message;
-			if (error.response?.body) {
-				try {
-					const errorBody =
-						typeof error.response.body === 'string'
-							? JSON.parse(error.response.body)
-							: error.response.body;
-					errorDetail = errorBody.detail || errorBody.message || error.message;
-				} catch {
-					errorDetail = error.response.body || error.message;
-				}
-			}
-			// Log full error details for debugging
-			console.error('VlmRun API Error:', {
-				url,
-				method,
-				status: error.response?.status,
-				statusText: error.response?.statusText,
-				body: error.response?.body,
-				errorDetail,
-			});
-			throw new Error(`HTTP ${error.response?.status || 'Error'}: ${errorDetail}`);
+			this.handleRequestError(error, url, method);
 		}
 	}
 
@@ -171,7 +172,18 @@ export class VlmRunClient {
 		contentType?: string,
 	): Promise<any> {
 		const url = `${this.agentBaseURL}${endpoint}`;
-		console.log('url', url);
+
+		// Determine timeout based on endpoint and model
+		let timeout = 60000; // Default 60 seconds
+		if (endpoint === '/openai/chat/completions' && data?.model) {
+			// Chat completions need longer timeout
+			// "fast" and "auto" models might need more time than "pro"
+			if (data.model.includes(':fast') || data.model.includes(':auto')) {
+				timeout = 300000; // 5 minutes for fast/auto
+			} else {
+				timeout = 180000; // 3 minutes for pro
+			}
+		}
 
 		const options: IHttpRequestOptions = {
 			method: method as IHttpRequestMethods,
@@ -179,6 +191,7 @@ export class VlmRunClient {
 			headers: {
 				'X-Client-Id': `n8n-vlmrun-${packageJson.version}`,
 			},
+			timeout,
 		};
 
 		if (contentType) {
@@ -196,29 +209,42 @@ export class VlmRunClient {
 			}
 		}
 
-		try {
-			const response = await this.ef.helpers.httpRequestWithAuthentication.call(
-				this.ef,
-				'vlmRunApi',
-				options,
-			);
-			return response;
-		} catch (error: any) {
-			// Extract error details similar to the original implementation
-			let errorDetail = error.message;
-			if (error.response?.body) {
-				try {
-					const errorBody =
-						typeof error.response.body === 'string'
-							? JSON.parse(error.response.body)
-							: error.response.body;
-					errorDetail = errorBody.detail || errorBody.message || error.message;
-				} catch {
-					errorDetail = error.response.body || error.message;
+		// Add retry logic for transient network errors
+		let lastError: any;
+		const maxRetries = 3;
+		
+		for (let attempt = 1; attempt <= maxRetries; attempt++) {
+			try {
+				const response = await this.ef.helpers.httpRequestWithAuthentication.call(
+					this.ef,
+					'vlmRunApi',
+					options,
+				);
+				return response;
+			} catch (error: any) {
+				lastError = error;
+				
+				// Check if it's a retryable error (network/timeout errors)
+				const errorCode = error.code || error.cause?.code;
+				const isRetryable = 
+					errorCode === 'ETIMEDOUT' || 
+					errorCode === 'ECONNRESET' || 
+					errorCode === 'EPIPE' ||
+					(!error.response && attempt < maxRetries); // Network errors without response
+				
+				if (isRetryable && attempt < maxRetries) {
+					const delay = RETRY_DELAY * attempt; // Exponential backoff
+					await new Promise(resolve => setTimeout(resolve, delay));
+					continue;
 				}
+				
+				// Not retryable or max retries reached
+				this.handleRequestError(error, url, method);
 			}
-			throw new Error(`HTTP ${error.response?.status || 'Error'}: ${errorDetail}`);
 		}
+		
+		// All retries exhausted
+		this.handleRequestError(lastError, url, method);
 	}
 
 	// Domains API
