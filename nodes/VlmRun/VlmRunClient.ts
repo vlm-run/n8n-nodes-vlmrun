@@ -100,7 +100,7 @@ export class VlmRunClient {
 			: config.agentBaseURL;
 	}
 
-	private handleRequestError(error: any, url: string, method: string): never {
+	private handleRequestError(error: any): never {
 		// Extract error details from HTTP response
 		let errorDetail = error.message || 'Unknown error';
 		if (error.response?.body) {
@@ -161,7 +161,7 @@ export class VlmRunClient {
 			);
 			return response;
 		} catch (error: any) {
-			this.handleRequestError(error, url, method);
+			this.handleRequestError(error);
 		}
 	}
 
@@ -238,13 +238,13 @@ export class VlmRunClient {
 					continue;
 				}
 				
-				// Not retryable or max retries reached
-				this.handleRequestError(error, url, method);
+				// Not retryable or max retries reached, so break the loop
+				break;
 			}
 		}
 		
-		// All retries exhausted
-		this.handleRequestError(lastError, url, method);
+		// All retries exhausted or a non-retryable error occurred
+		this.handleRequestError(lastError);
 	}
 
 	// Domains API
