@@ -44,12 +44,6 @@ export class VlmRun implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
-						name: 'Artifacts',
-						value: 'artifacts',
-						description: 'Get artifacts by session ID or execution ID and object ID',
-						action: 'Get artifacts',
-					},
-					{
 						name: 'Analyze Audio',
 						value: 'audio',
 						description:
@@ -57,29 +51,23 @@ export class VlmRun implements INodeType {
 						action: 'Analyze audio',
 					},
 					{
-						name: 'Analyze Document',
-						value: 'document',
-						description:
-							'Extract structured data from documents such as resumes, invoices, presentations, and more',
-						action: 'Analyze document',
-					},
-					{
-						name: 'Analyze Image',
-						value: 'image',
-						description: 'Extract information or generate captions from images',
-						action: 'Analyze image',
-					},
-					{
-						name: 'Analyze Video',
-						value: 'video',
-						description: 'Extract insights or transcribe content from video files',
-						action: 'Analyze video',
+						name: 'Artifacts',
+						value: 'artifacts',
+						description: 'Get artifacts by session ID or execution ID and object ID',
+						action: 'Get artifacts',
 					},
 					{
 						name: 'Chat Completion',
 						value: 'chatCompletion',
 						description: 'Generate chat completions using OpenAI-compatible API',
 						action: 'Chat completion',
+					},
+					{
+						name: 'Analyze Document',
+						value: 'document',
+						description:
+							'Extract structured data from documents such as resumes, invoices, presentations, and more',
+						action: 'Analyze document',
 					},
 					{
 						name: 'Execute Agent',
@@ -93,10 +81,46 @@ export class VlmRun implements INodeType {
 						description: 'List uploaded files or upload new files to VLM Run',
 						action: 'Manage files',
 					},
+					{
+						name: 'Analyze Image',
+						value: 'image',
+						description: 'Extract information or generate captions from images',
+						action: 'Analyze image',
+					},
+					{
+						name: 'Analyze Video',
+						value: 'video',
+						description: 'Extract insights or transcribe content from video files',
+						action: 'Analyze video',
+					},
 				],
 			default: 'document',
 		},
 			// Artifacts Properties
+			{
+				displayName: 'Artifact Type',
+				name: 'artifactType',
+				type: 'options',
+				displayOptions: {
+					show: {
+						operation: ['artifacts'],
+					},
+				},
+				options: [
+					{
+						name: 'Agent',
+						value: 'agent',
+						description: 'Get artifact using object ID and execution ID',
+					},
+					{
+						name: 'Chat',
+						value: 'chat',
+						description: 'Get artifact using object ID and session ID',
+					},
+				],
+				default: 'chat',
+				description: 'Type of artifact to retrieve',
+			},
 			{
 				displayName: 'Object ID',
 				name: 'objectId',
@@ -117,11 +141,26 @@ export class VlmRun implements INodeType {
 				displayOptions: {
 					show: {
 						operation: ['artifacts'],
+						artifactType: ['chat'],
 					},
 				},
 				default: '',
 				required: true,
-				description: 'Session ID for the artifact',
+				description: 'Session ID for the artifact (used with chat type)',
+			},
+			{
+				displayName: 'Execution ID',
+				name: 'executionId',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['artifacts'],
+						artifactType: ['agent'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'Execution ID for the artifact (used with agent type)',
 			},
 			// File field for document, image, audio, video operations
 			{
@@ -610,12 +649,22 @@ export class VlmRun implements INodeType {
 
 				switch (operation) {
 					case 'artifacts': {
+						const artifactType = this.getNodeParameter('artifactType', i) as string;
 						const objectId = this.getNodeParameter('objectId', i) as string;
-						const sessionId = this.getNodeParameter('sessionId', i) as string;
+						
+						let sessionId: string | undefined;
+						let executionId: string | undefined;
+
+						if (artifactType === 'agent') {
+							executionId = this.getNodeParameter('executionId', i) as string;
+						} else {
+							sessionId = this.getNodeParameter('sessionId', i) as string;
+						}
 
 						const artifactResponse = await ApiService.getArtifact(this, {
 							objectId,
 							sessionId,
+							executionId,
 						});
 
 						// Determine artifact type from objectId
@@ -657,7 +706,14 @@ export class VlmRun implements INodeType {
 							fileExtension = 'spz';
 							mimeType = 'application/octet-stream';
 						} else if (objType === 'url') {
-							// URL artifact - decode and download
+							// URL artifact - decode and download (only possible when objectId is provided)
+							if (!objectId) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'URL artifacts require an object ID',
+								);
+							}
+							
 							const url = artifactResponse.data.toString('utf-8');
 							
 							try {
@@ -716,7 +772,9 @@ export class VlmRun implements INodeType {
 						}
 
 						// For other types, return as binary data
-						const fileName = `${objectId}.${fileExtension}`;
+						const fileName = objectId 
+							? `${objectId}.${fileExtension}` 
+							: `artifact_${executionId || sessionId}.${fileExtension}`;
 
 						const binaryData = await this.helpers.prepareBinaryData(
 							artifactResponse.data,
@@ -726,9 +784,10 @@ export class VlmRun implements INodeType {
 
 						returnData.push({
 							json: {
-								objectId,
+								objectId: objectId || undefined,
+								executionId: executionId || undefined,
 								sessionId,
-								type: objType,
+								type: objType || 'unknown',
 								filename: fileName,
 							},
 							binary: {

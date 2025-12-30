@@ -445,16 +445,22 @@ export class VlmRunClient {
 	public artifacts = {
 		get: async (params: {
 			objectId: string;
-			sessionId: string;
+			sessionId?: string;
+			executionId?: string;
 		}): Promise<{ data: Buffer; contentType?: string }> => {
-			const { objectId, sessionId } = params;
+			const { objectId, sessionId, executionId } = params;
 
 			// Validate required fields
 			if (!objectId || objectId.trim() === '') {
 				throw new Error('`objectId` is required and cannot be empty');
 			}
-			if (!sessionId || sessionId.trim() === '') {
-				throw new Error('`sessionId` is required and cannot be empty');
+			
+			// For agent type, executionId is required; for chat type, sessionId is required
+			if (!executionId && !sessionId) {
+				throw new Error('Either `sessionId` (for chat) or `executionId` (for agent) is required');
+			}
+			if (executionId && sessionId) {
+				throw new Error('Only one of `sessionId` or `executionId` is allowed, not both');
 			}
 
 			// Ensure baseURL doesn't have trailing slash
@@ -463,10 +469,17 @@ export class VlmRunClient {
 				: this.agentBaseURL;
 			
 			// Build request body as JSON (matching curl -d format)
-			const requestBody = {
+			const requestBody: any = {
 				object_id: objectId.trim(),
-				session_id: sessionId.trim(),
 			};
+			
+			if (sessionId) {
+				requestBody.session_id = sessionId.trim();
+			}
+			if (executionId) {
+				requestBody.execution_id = executionId.trim();
+			}
+			
 			const requestBodyString = JSON.stringify(requestBody);
 			
 			const url = `${baseURL}/artifacts`;
@@ -477,16 +490,19 @@ export class VlmRunClient {
 			};
 			
 			// Use Node.js https module directly to send GET request with body
-			// This gives us full control to send body with GET (matching curl format)
+			// n8n's httpRequest helpers don't send bodies with GET, so we use native https
+			// We still use IHttpRequestMethods for type safety
 			try {
 				const urlObj = new URL(url);
 				const bodyBuffer = Buffer.from(requestBodyString, 'utf-8');
 				
-				const options = {
+				const method: IHttpRequestMethods = 'GET';
+				
+				const options: https.RequestOptions = {
 					hostname: urlObj.hostname,
 					port: urlObj.port || 443,
 					path: urlObj.pathname + urlObj.search,
-					method: 'GET',
+					method: method,
 					headers: {
 						'X-Client-Id': `n8n-vlmrun-${packageJson.version}`,
 						'accept': 'application/json',
