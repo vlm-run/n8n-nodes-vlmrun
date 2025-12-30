@@ -103,15 +103,33 @@ export class VlmRunClient {
 	private handleRequestError(error: any): never {
 		// Extract error details from HTTP response
 		let errorDetail = error.message || 'Unknown error';
-		if (error.response?.body) {
-			try {
-				const errorBody =
-					typeof error.response.body === 'string'
-						? JSON.parse(error.response.body)
-						: error.response.body;
-				errorDetail = errorBody.detail || errorBody.message || errorDetail;
-			} catch {
-				errorDetail = error.response.body || errorDetail;
+		
+		// Try to get more detailed error information
+		if (error.response) {
+			// Try to parse response body
+			let responseBody = error.response.body;
+			if (responseBody) {
+				try {
+					// Handle different response body formats
+					if (typeof responseBody === 'string') {
+						responseBody = JSON.parse(responseBody);
+					} else if (Buffer.isBuffer(responseBody)) {
+						responseBody = JSON.parse(responseBody.toString('utf-8'));
+					} else if (responseBody instanceof ArrayBuffer) {
+						responseBody = JSON.parse(Buffer.from(responseBody).toString('utf-8'));
+					}
+					
+					errorDetail = responseBody.detail || responseBody.message || responseBody.error || errorDetail;
+				} catch (parseError) {
+					// If parsing fails, try to get string representation
+					if (typeof responseBody === 'string') {
+						errorDetail = responseBody;
+					} else if (Buffer.isBuffer(responseBody)) {
+						errorDetail = responseBody.toString('utf-8');
+					} else {
+						errorDetail = String(responseBody);
+					}
+				}
 			}
 		}
 
@@ -418,6 +436,130 @@ export class VlmRunClient {
 				},
 				encoding: null as unknown as undefined,
 			});
+		},
+	};
+
+	// Artifacts API
+	public artifacts = {
+		get: async (params: {
+			objectId: string;
+			sessionId: string;
+		}): Promise<{ data: Buffer; contentType?: string }> => {
+			const { objectId, sessionId } = params;
+
+			// Validate required fields
+			if (!objectId || objectId.trim() === '') {
+				throw new Error('`objectId` is required and cannot be empty');
+			}
+			if (!sessionId || sessionId.trim() === '') {
+				throw new Error('`sessionId` is required and cannot be empty');
+			}
+
+			// Ensure baseURL doesn't have trailing slash
+			const baseURL = this.agentBaseURL.endsWith('/') 
+				? this.agentBaseURL.slice(0, -1) 
+				: this.agentBaseURL;
+			
+			// Build request body as JSON (matching curl -d format)
+			const requestBody = {
+				object_id: objectId.trim(),
+				session_id: sessionId.trim(),
+			};
+			const requestBodyString = JSON.stringify(requestBody);
+			
+			const url = `${baseURL}/artifacts`;
+			
+			// Get credentials to manually add Authorization header
+			const credentials = (await this.ef.getCredentials('vlmRunApi')) as {
+				apiKey: string;
+			};
+			
+			// Use axios directly to send GET request with body (matching SDK approach)
+			// n8n's httpRequest doesn't send bodies with GET requests, so we need axios
+			try {
+				// Dynamically import axios (it should be available in n8n's environment)
+				const axios = require('axios');
+				
+				// Use axios() with method: 'GET' and data to send body with GET request
+				// axios.get() doesn't support body, so we use the general axios() method
+				const response = await axios({
+					method: 'GET',
+					url,
+					headers: {
+						'X-Client-Id': `n8n-vlmrun-${packageJson.version}`,
+						'accept': 'application/json',
+						'Content-Type': 'application/json',
+						'Authorization': `Bearer ${credentials.apiKey}`,
+					},
+					data: requestBodyString, // Request body
+					responseType: 'arraybuffer',
+					timeout: DEFAULT_TIMEOUT,
+				});
+				
+
+				// Axios response structure: response.data contains the body
+				let data: Buffer;
+				if (response.data instanceof ArrayBuffer) {
+					data = Buffer.from(response.data);
+				} else if (Buffer.isBuffer(response.data)) {
+					data = response.data;
+				} else {
+					data = Buffer.from(response.data || response.data);
+				}
+
+				const contentType = response.headers?.['content-type'] || response.headers?.['Content-Type'];
+
+				return { data, contentType };
+			} catch (error: any) {
+				// Log detailed error information for debugging
+				console.log('Artifacts Request Error:', {
+					message: error.message,
+					status: error.response?.status,
+					statusText: error.response?.statusText,
+					headers: error.response?.headers,
+				});
+				
+				// Try to get error response body - n8n might store it differently
+				let errorBody: any = error.response?.body;
+				if (!errorBody && error.response) {
+					// Try to get from response data
+					errorBody = error.response.data || error.response.body;
+				}
+				
+				if (errorBody) {
+					try {
+						let errorBodyString: string;
+						if (Buffer.isBuffer(errorBody)) {
+							errorBodyString = errorBody.toString('utf-8');
+						} else if (errorBody instanceof ArrayBuffer) {
+							errorBodyString = Buffer.from(errorBody).toString('utf-8');
+						} else if (typeof errorBody === 'string') {
+							errorBodyString = errorBody;
+						} else {
+							errorBodyString = JSON.stringify(errorBody);
+						}
+						
+						console.log('Error Response Body:', errorBodyString);
+						
+						try {
+							const parsed = JSON.parse(errorBodyString);
+							console.log('Error Response Body (parsed):', JSON.stringify(parsed, null, 2));
+							// Update error message with API's error details
+							if (parsed.detail || parsed.message) {
+								error.message = parsed.detail || parsed.message;
+							}
+						} catch {
+							console.log('Error Response Body (raw string):', errorBodyString);
+						}
+					} catch (parseError) {
+						console.log('Could not process error response body:', parseError);
+					}
+				} else {
+					console.log('No error response body found');
+				}
+				
+				this.handleRequestError(error);
+			}
 		},
 	};
 }

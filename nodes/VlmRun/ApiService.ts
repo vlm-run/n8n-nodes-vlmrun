@@ -174,4 +174,16 @@ export class ApiService {
 		}
 		return client.chat.completions(request);
 	}
+
+	// Artifacts Operations
+	static async getArtifact(
+		ef: IExecuteFunctions,
+		params: {
+			objectId: string;
+			sessionId: string;
+		},
+	): Promise<{ data: Buffer; contentType?: string }> {
+		const client = await this.initializeVlmRun(ef);
+		return client.artifacts.get(params);
+	}
 }
