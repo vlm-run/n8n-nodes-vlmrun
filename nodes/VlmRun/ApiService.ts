@@ -180,7 +180,8 @@ export class ApiService {
 		ef: IExecuteFunctions,
 		params: {
 			objectId: string;
-			sessionId: string;
+			sessionId?: string;
+			executionId?: string;
 		},
 	): Promise<{ data: Buffer; contentType?: string }> {
 		const client = await this.initializeVlmRun(ef);
