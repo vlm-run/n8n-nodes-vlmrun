@@ -103,15 +103,33 @@ export class VlmRunClient {
 	private handleRequestError(error: any): never {
 		// Extract error details from HTTP response
 		let errorDetail = error.message || 'Unknown error';
-		if (error.response?.body) {
-			try {
-				const errorBody =
-					typeof error.response.body === 'string'
-						? JSON.parse(error.response.body)
-						: error.response.body;
-				errorDetail = errorBody.detail || errorBody.message || errorDetail;
-			} catch {
-				errorDetail = error.response.body || errorDetail;
+		
+		// Try to get more detailed error information
+		if (error.response) {
+			// Try to parse response body
+			let responseBody = error.response.body;
+			if (responseBody) {
+				try {
+					// Handle different response body formats
+					if (typeof responseBody === 'string') {
+						responseBody = JSON.parse(responseBody);
+					} else if (Buffer.isBuffer(responseBody)) {
+						responseBody = JSON.parse(responseBody.toString('utf-8'));
+					} else if (responseBody instanceof ArrayBuffer) {
+						responseBody = JSON.parse(Buffer.from(responseBody).toString('utf-8'));
+					}
+					
+					errorDetail = responseBody.detail || responseBody.message || responseBody.error || errorDetail;
+				} catch (parseError) {
+					// If parsing fails, try to get string representation
+					if (typeof responseBody === 'string') {
+						errorDetail = responseBody;
+					} else if (Buffer.isBuffer(responseBody)) {
+						errorDetail = responseBody.toString('utf-8');
+					} else {
+						errorDetail = String(responseBody);
+					}
+				}
 			}
 		}
 
@@ -418,6 +436,87 @@ export class VlmRunClient {
 				},
 				encoding: null as unknown as undefined,
 			});
+		},
+	};
+
+	// Artifacts API
+	public artifacts = {
+		get: async (params: {
+			objectId: string;
+			sessionId?: string;
+			executionId?: string;
+		}): Promise<{ data: Buffer; contentType?: string }> => {
+			const { objectId, sessionId, executionId } = params;
+
+			// Validate required fields
+			if (!objectId || objectId.trim() === '') {
+				throw new Error('`objectId` is required and cannot be empty');
+			}
+			
+			// For agent type, executionId is required; for chat type, sessionId is required
+			if (!executionId && !sessionId) {
+				throw new Error('Either `sessionId` (for chat) or `executionId` (for agent) is required');
+			}
+			if (executionId && sessionId) {
+				throw new Error('Only one of `sessionId` or `executionId` is allowed, not both');
+			}
+
+			// Ensure baseURL doesn't have trailing slash
+			const baseURL = this.agentBaseURL.endsWith('/') 
+				? this.agentBaseURL.slice(0, -1) 
+				: this.agentBaseURL;
+			
+			// Build query parameters (matching SDK format)
+			const queryParams = new URLSearchParams();
+			queryParams.append('object_id', objectId.trim());
+			
+			if (sessionId) {
+				queryParams.append('session_id', sessionId.trim());
+			}
+			if (executionId) {
+				queryParams.append('execution_id', executionId.trim());
+			}
+			
+			const url = `${baseURL}/artifacts?${queryParams.toString()}`;
+			
+			// Get credentials to manually add Authorization header
+			const credentials = (await this.ef.getCredentials('vlmRunApi')) as {
+				apiKey: string;
+			};
+			
+			// Use n8n's httpRequest helper with query parameters
+			try {
+				const response = await this.ef.helpers.httpRequest({
+					method: 'GET',
+					url,
+					headers: {
+						'X-Client-Id': `n8n-vlmrun-${packageJson.version}`,
+						'accept': 'application/json',
+						'Authorization': `Bearer ${credentials.apiKey}`,
+					},
+					encoding: 'arraybuffer',
+					returnFullResponse: true,
+					timeout: DEFAULT_TIMEOUT,
+				});
+
+				// Convert ArrayBuffer to Buffer
+				let data: Buffer;
+				if (response.body instanceof ArrayBuffer) {
+					data = Buffer.from(response.body);
+				} else if (Buffer.isBuffer(response.body)) {
+					data = response.body;
+				} else {
+					data = Buffer.from(response.body || response);
+				}
+
+				const contentType = response.headers?.['content-type'] || 
+					response.headers?.['Content-Type'] || 
+					undefined;
+
+				return { data, contentType };
+			} catch (error: any) {
+				this.handleRequestError(error);
+			}
 		},
 	};
 }
