@@ -2,6 +2,8 @@ import { IExecuteFunctions, IHttpRequestOptions, IHttpRequestMethods } from 'n8n
 import { ChatCompletionRequest } from './types';
 import packageJson from '../../package.json';
 import { RETRY_DELAY, MAX_RETRIES, DEFAULT_TIMEOUT, CHAT_COMPLETION_TIMEOUT } from './config';
+import * as https from 'https';
+import { URL } from 'url';
 
 export interface VlmRunConfig {
 	baseURL: string;
@@ -474,90 +476,70 @@ export class VlmRunClient {
 				apiKey: string;
 			};
 			
-			// Use axios directly to send GET request with body (matching SDK approach)
-			// n8n's httpRequest doesn't send bodies with GET requests, so we need axios
+			// Use Node.js https module directly to send GET request with body
+			// This gives us full control to send body with GET (matching curl format)
 			try {
-				// Dynamically import axios (it should be available in n8n's environment)
-				const axios = require('axios');
+				const urlObj = new URL(url);
+				const bodyBuffer = Buffer.from(requestBodyString, 'utf-8');
 				
-				// Use axios() with method: 'GET' and data to send body with GET request
-				// axios.get() doesn't support body, so we use the general axios() method
-				const response = await axios({
+				const options = {
+					hostname: urlObj.hostname,
+					port: urlObj.port || 443,
+					path: urlObj.pathname + urlObj.search,
 					method: 'GET',
-					url,
 					headers: {
 						'X-Client-Id': `n8n-vlmrun-${packageJson.version}`,
 						'accept': 'application/json',
 						'Content-Type': 'application/json',
 						'Authorization': `Bearer ${credentials.apiKey}`,
+						'Content-Length': bodyBuffer.length,
 					},
-					data: requestBodyString, // Request body
-					responseType: 'arraybuffer',
 					timeout: DEFAULT_TIMEOUT,
-				});
+				};
 				
-
-				// Axios response structure: response.data contains the body
-				let data: Buffer;
-				if (response.data instanceof ArrayBuffer) {
-					data = Buffer.from(response.data);
-				} else if (Buffer.isBuffer(response.data)) {
-					data = response.data;
-				} else {
-					data = Buffer.from(response.data || response.data);
-				}
-
-				const contentType = response.headers?.['content-type'] || response.headers?.['Content-Type'];
-
-				return { data, contentType };
-			} catch (error: any) {
-				// Log detailed error information for debugging
-				console.log('Artifacts Request Error:', {
-					message: error.message,
-					status: error.response?.status,
-					statusText: error.response?.statusText,
-					headers: error.response?.headers,
-				});
-				
-				// Try to get error response body - n8n might store it differently
-				let errorBody: any = error.response?.body;
-				if (!errorBody && error.response) {
-					// Try to get from response data
-					errorBody = error.response.data || error.response.body;
-				}
-				
-				if (errorBody) {
-					try {
-						let errorBodyString: string;
-						if (Buffer.isBuffer(errorBody)) {
-							errorBodyString = errorBody.toString('utf-8');
-						} else if (errorBody instanceof ArrayBuffer) {
-							errorBodyString = Buffer.from(errorBody).toString('utf-8');
-						} else if (typeof errorBody === 'string') {
-							errorBodyString = errorBody;
-						} else {
-							errorBodyString = JSON.stringify(errorBody);
-						}
+				return new Promise<{ data: Buffer; contentType?: string }>((resolve, reject) => {
+					const req = https.request(options, (res) => {
+						const chunks: Buffer[] = [];
 						
-						console.log('Error Response Body:', errorBodyString);
+						res.on('data', (chunk: Buffer) => {
+							chunks.push(chunk);
+						});
 						
-						try {
-							const parsed = JSON.parse(errorBodyString);
-							console.log('Error Response Body (parsed):', JSON.stringify(parsed, null, 2));
-							// Update error message with API's error details
-							if (parsed.detail || parsed.message) {
-								error.message = parsed.detail || parsed.message;
+						res.on('end', () => {
+							const data = Buffer.concat(chunks);
+							const contentType = res.headers['content-type'] || undefined;
+							
+							if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+								resolve({ data, contentType });
+							} else {
+								// Try to parse error response
+								let errorDetail = `HTTP ${res.statusCode}`;
+								try {
+									const errorText = data.toString('utf-8');
+									const errorJson = JSON.parse(errorText);
+									errorDetail = errorJson.detail || errorJson.message || errorText;
+								} catch {
+									errorDetail = data.toString('utf-8') || errorDetail;
+								}
+								reject(new Error(errorDetail));
 							}
-						} catch {
-							console.log('Error Response Body (raw string):', errorBodyString);
-						}
-					} catch (parseError) {
-						console.log('Could not process error response body:', parseError);
-					}
-				} else {
-					console.log('No error response body found');
-				}
-				
+						});
+					});
+					
+					req.on('error', (error: Error) => {
+						reject(error);
+					});
+					
+					req.on('timeout', () => {
+						req.destroy();
+						reject(new Error(`Request timeout after ${DEFAULT_TIMEOUT}ms`));
+					});
+					
+					// Write the body to the request
+					req.write(bodyBuffer);
+					req.end();
+				});
+			} catch (error: any) {
 				this.handleRequestError(error);
 			}
 		},
