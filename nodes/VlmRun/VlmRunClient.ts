@@ -2,8 +2,6 @@ import { IExecuteFunctions, IHttpRequestOptions, IHttpRequestMethods } from 'n8n
 import { ChatCompletionRequest } from './types';
 import packageJson from '../../package.json';
 import { RETRY_DELAY, MAX_RETRIES, DEFAULT_TIMEOUT, CHAT_COMPLETION_TIMEOUT } from './config';
-import * as https from 'https';
-import { URL } from 'url';
 
 export interface VlmRunConfig {
 	baseURL: string;
@@ -468,93 +466,54 @@ export class VlmRunClient {
 				? this.agentBaseURL.slice(0, -1) 
 				: this.agentBaseURL;
 			
-			// Build request body as JSON (matching curl -d format)
-			const requestBody: any = {
-				object_id: objectId.trim(),
-			};
+			// Build query parameters (matching SDK format)
+			const queryParams = new URLSearchParams();
+			queryParams.append('object_id', objectId.trim());
 			
 			if (sessionId) {
-				requestBody.session_id = sessionId.trim();
+				queryParams.append('session_id', sessionId.trim());
 			}
 			if (executionId) {
-				requestBody.execution_id = executionId.trim();
+				queryParams.append('execution_id', executionId.trim());
 			}
 			
-			const requestBodyString = JSON.stringify(requestBody);
-			
-			const url = `${baseURL}/artifacts`;
+			const url = `${baseURL}/artifacts?${queryParams.toString()}`;
 			
 			// Get credentials to manually add Authorization header
 			const credentials = (await this.ef.getCredentials('vlmRunApi')) as {
 				apiKey: string;
 			};
 			
-			// Use Node.js https module directly to send GET request with body
-			// n8n's httpRequest helpers don't send bodies with GET, so we use native https
-			// We still use IHttpRequestMethods for type safety
+			// Use n8n's httpRequest helper with query parameters
 			try {
-				const urlObj = new URL(url);
-				const bodyBuffer = Buffer.from(requestBodyString, 'utf-8');
-				
-				const method: IHttpRequestMethods = 'GET';
-				
-				const options: https.RequestOptions = {
-					hostname: urlObj.hostname,
-					port: urlObj.port || 443,
-					path: urlObj.pathname + urlObj.search,
-					method: method,
+				const response = await this.ef.helpers.httpRequest({
+					method: 'GET',
+					url,
 					headers: {
 						'X-Client-Id': `n8n-vlmrun-${packageJson.version}`,
 						'accept': 'application/json',
-						'Content-Type': 'application/json',
 						'Authorization': `Bearer ${credentials.apiKey}`,
-						'Content-Length': bodyBuffer.length,
 					},
+					encoding: 'arraybuffer',
+					returnFullResponse: true,
 					timeout: DEFAULT_TIMEOUT,
-				};
-				
-				return new Promise<{ data: Buffer; contentType?: string }>((resolve, reject) => {
-					const req = https.request(options, (res) => {
-						const chunks: Buffer[] = [];
-						
-						res.on('data', (chunk: Buffer) => {
-							chunks.push(chunk);
-						});
-						
-						res.on('end', () => {
-							const data = Buffer.concat(chunks);
-							const contentType = res.headers['content-type'] || undefined;
-							
-							if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-								resolve({ data, contentType });
-							} else {
-								// Try to parse error response
-								let errorDetail = `HTTP ${res.statusCode}`;
-								try {
-									const errorText = data.toString('utf-8');
-									const errorJson = JSON.parse(errorText);
-									errorDetail = errorJson.detail || errorJson.message || errorText;
-								} catch {
-									errorDetail = data.toString('utf-8') || errorDetail;
-								}
-								reject(new Error(errorDetail));
-							}
-						});
-					});
-					
-					req.on('error', (error: Error) => {
-						reject(error);
-					});
-					
-					req.on('timeout', () => {
-						req.destroy();
-						reject(new Error(`Request timeout after ${DEFAULT_TIMEOUT}ms`));
-					});
-					
-					// Write the body to the request
-					req.write(bodyBuffer);
-					req.end();
 				});
+
+				// Convert ArrayBuffer to Buffer
+				let data: Buffer;
+				if (response.body instanceof ArrayBuffer) {
+					data = Buffer.from(response.body);
+				} else if (Buffer.isBuffer(response.body)) {
+					data = response.body;
+				} else {
+					data = Buffer.from(response.body || response);
+				}
+
+				const contentType = response.headers?.['content-type'] || 
+					response.headers?.['Content-Type'] || 
+					undefined;
+
+				return { data, contentType };
 			} catch (error: any) {
 				this.handleRequestError(error);
 			}
