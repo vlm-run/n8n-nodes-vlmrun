@@ -70,6 +70,12 @@ export class VlmRun implements INodeType {
 						action: 'Analyze video',
 					},
 					{
+						name: 'Artifacts',
+						value: 'artifacts',
+						description: 'Get artifacts by session ID or execution ID and object ID',
+						action: 'Get artifacts',
+					},
+					{
 						name: 'Chat Completion',
 						value: 'chatCompletion',
 						description: 'Generate chat completions using OpenAI-compatible API',
@@ -90,6 +96,72 @@ export class VlmRun implements INodeType {
 				],
 			default: 'document',
 		},
+			// Artifacts Properties
+			{
+				displayName: 'Artifact Type',
+				name: 'artifactType',
+				type: 'options',
+				displayOptions: {
+					show: {
+						operation: ['artifacts'],
+					},
+				},
+				options: [
+					{
+						name: 'Agent',
+						value: 'agent',
+						description: 'Get artifact using object ID and execution ID',
+					},
+					{
+						name: 'Chat',
+						value: 'chat',
+						description: 'Get artifact using object ID and session ID',
+					},
+				],
+				default: 'chat',
+				description: 'Type of artifact to retrieve',
+			},
+			{
+				displayName: 'Object ID',
+				name: 'objectId',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['artifacts'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'Object ID for the artifact (format: &lt;type&gt;_&lt;6-hex-chars&gt;)',
+			},
+			{
+				displayName: 'Session ID',
+				name: 'sessionId',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['artifacts'],
+						artifactType: ['chat'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'Session ID for the artifact (used with chat type)',
+			},
+			{
+				displayName: 'Execution ID',
+				name: 'executionId',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['artifacts'],
+						artifactType: ['agent'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'Execution ID for the artifact (used with agent type)',
+			},
 			// File field for document, image, audio, video operations
 			{
 				displayName: 'File',
@@ -576,6 +648,155 @@ export class VlmRun implements INodeType {
 				let response: IDataObject;
 
 				switch (operation) {
+					case 'artifacts': {
+						const artifactType = this.getNodeParameter('artifactType', i) as string;
+						const objectId = this.getNodeParameter('objectId', i) as string;
+						
+						let sessionId: string | undefined;
+						let executionId: string | undefined;
+
+						if (artifactType === 'agent') {
+							executionId = this.getNodeParameter('executionId', i) as string;
+						} else {
+							sessionId = this.getNodeParameter('sessionId', i) as string;
+						}
+
+						const artifactResponse = await ApiService.getArtifact(this, {
+							objectId,
+							sessionId,
+							executionId,
+						});
+
+						// Determine artifact type from objectId
+						const parts = objectId.split('_');
+						if (parts.length < 2) {
+							throw new NodeOperationError(
+								this.getNode(),
+								`Invalid object ID: ${objectId}, expected format: <obj_type>_<6-digit-hex-string>`,
+							);
+						}
+
+						const objType = parts[0] === 'recon' ? 'recon' : parts[0];
+						const objIdSuffix = parts[parts.length - 1];
+
+						if (objIdSuffix.length !== 6) {
+							throw new NodeOperationError(
+								this.getNode(),
+								`Invalid object ID: ${objectId}, expected format: <obj_type>_<6-digit-hex-string>`,
+							);
+						}
+
+						// Determine file extension and mime type
+						let fileExtension = 'bin';
+						let mimeType = artifactResponse.contentType || 'application/octet-stream';
+
+						if (objType === 'img') {
+							fileExtension = 'jpg';
+							mimeType = 'image/jpeg';
+						} else if (objType === 'vid') {
+							fileExtension = 'mp4';
+							mimeType = 'video/mp4';
+						} else if (objType === 'aud') {
+							fileExtension = 'mp3';
+							mimeType = 'audio/mpeg';
+						} else if (objType === 'doc') {
+							fileExtension = 'pdf';
+							mimeType = 'application/pdf';
+						} else if (objType === 'recon') {
+							fileExtension = 'spz';
+							mimeType = 'application/octet-stream';
+						} else if (objType === 'url') {
+							// URL artifact - decode and download (only possible when objectId is provided)
+							if (!objectId) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'URL artifacts require an object ID',
+								);
+							}
+							
+							const url = artifactResponse.data.toString('utf-8');
+							
+							try {
+								const urlObj = new URL(url);
+								const urlPath = urlObj.pathname;
+								const filename = urlPath.split('/').pop()?.split('?')[0] || 'file';
+								const ext = filename.split('.').pop()?.toLowerCase() || 'bin';
+								
+								// Download the file from URL
+								const downloadResponse = await this.helpers.httpRequest({
+									method: 'GET',
+									url,
+									encoding: 'arraybuffer',
+									returnFullResponse: true,
+								});
+
+								let downloadedData: Buffer;
+								if (downloadResponse.body instanceof ArrayBuffer) {
+									downloadedData = Buffer.from(downloadResponse.body);
+								} else if (Buffer.isBuffer(downloadResponse.body)) {
+									downloadedData = downloadResponse.body;
+								} else {
+									downloadedData = Buffer.from(downloadResponse.body || downloadResponse);
+								}
+
+								const downloadedMimeType = downloadResponse.headers?.['content-type'] || 
+									downloadResponse.headers?.['Content-Type'] || 
+									'application/octet-stream';
+
+								// Return as binary data
+								const binaryData = await this.helpers.prepareBinaryData(
+									downloadedData,
+									`${objectId}.${ext}`,
+									downloadedMimeType,
+								);
+
+								returnData.push({
+									json: {
+										objectId,
+										sessionId,
+										type: 'url',
+										url,
+										filename: `${objectId}.${ext}`,
+									},
+									binary: {
+										data: binaryData,
+									},
+								});
+								continue;
+							} catch (urlError) {
+								throw new NodeOperationError(
+									this.getNode(),
+									`Failed to process URL artifact: ${urlError instanceof Error ? urlError.message : String(urlError)}`,
+								);
+							}
+						}
+
+						// For other types, return as binary data
+						const fileName = objectId 
+							? `${objectId}.${fileExtension}` 
+							: `artifact_${executionId || sessionId}.${fileExtension}`;
+
+						const binaryData = await this.helpers.prepareBinaryData(
+							artifactResponse.data,
+							fileName,
+							mimeType,
+						);
+
+						returnData.push({
+							json: {
+								objectId: objectId || undefined,
+								executionId: executionId || undefined,
+								sessionId,
+								type: objType || 'unknown',
+								filename: fileName,
+							},
+							binary: {
+								data: binaryData,
+							},
+						});
+						continue;
+					}
+
 					case 'document':
 					case 'audio':
 					case 'video': {
