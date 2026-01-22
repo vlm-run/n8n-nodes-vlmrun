@@ -800,7 +800,7 @@ export class VlmRun implements INodeType {
 					case 'document':
 					case 'audio':
 					case 'video': {
-						const model = 'vlmrun-orion-1:auto'; // Use hardcoded model value
+						const model = 'vlm-1'; // Use hardcoded model value
 						const file = this.getNodeParameter('file', i) as string;
 						const { buffer, fileName } = await processFile(this, items[i], i, file);
 						const domain = this.getNodeParameter('domain', 0) as string;
